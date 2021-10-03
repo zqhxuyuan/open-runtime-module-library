@@ -13,7 +13,10 @@ pub mod para;
 pub mod relay;
 
 pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
+pub const ALICE1: AccountId32 = AccountId32::new([3u8; 32]);
 pub const BOB: AccountId32 = AccountId32::new([1u8; 32]);
+pub const Charlie: AccountId32 = AccountId32::new([2u8; 32]);
+pub const INITIAL_BALANCE: u128 = 1_000;
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -27,15 +30,19 @@ pub enum CurrencyId {
 }
 
 pub struct CurrencyIdConvert;
+// CurrencyId 转换为 MultiLocation，即通过币种算出该币种在哪条链上（中继链、平行链）
 impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 	fn convert(id: CurrencyId) -> Option<MultiLocation> {
 		match id {
+			// MultiLocation 包括 parents 和 interior:Junctions 字段
+			// 但下面并没有直接构造出MultiLocation，而是通过 (..,..,..).into()转换成MultiLocation
 			CurrencyId::R => Some(Parent.into()),
 			CurrencyId::A => Some((Parent, Parachain(1), GeneralKey("A".into())).into()),
 			CurrencyId::B => Some((Parent, Parachain(2), GeneralKey("B".into())).into()),
 		}
 	}
 }
+// 通过当前的链，算出这条链的币种
 impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 	fn convert(l: MultiLocation) -> Option<CurrencyId> {
 		let a: Vec<u8> = "A".into();
@@ -44,6 +51,7 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 			return Some(CurrencyId::R);
 		}
 		match l {
+			// Parent 的 parents 字段值 = 1
 			MultiLocation { parents, interior } if parents == 1 => match interior {
 				X2(Parachain(1), GeneralKey(k)) if k == a => Some(CurrencyId::A),
 				X2(Parachain(2), GeneralKey(k)) if k == b => Some(CurrencyId::B),
@@ -53,13 +61,16 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 		}
 	}
 }
+
+// MultiAsset 转换为"币种"，那么如何将币种转换为MultiAsset?
 impl Convert<MultiAsset, Option<CurrencyId>> for CurrencyIdConvert {
 	fn convert(a: MultiAsset) -> Option<CurrencyId> {
 		if let MultiAsset {
 			fun: Fungible(_),
-			id: Concrete(id),
+			id: Concrete(id), // AssetId枚举有两种，Concrete的带有MultiLocation
 		} = a
 		{
+			// 通过MultiLocation可以转换成CurrencyId币种信息
 			Self::convert(id)
 		} else {
 			Option::None
@@ -117,8 +128,12 @@ decl_test_network! {
 }
 
 pub type RelayBalances = pallet_balances::Pallet<relay::Runtime>;
+pub type ParaBalances = pallet_balances::Pallet<para::Runtime>;
 pub type ParaTokens = orml_tokens::Pallet<para::Runtime>;
 pub type ParaXTokens = orml_xtokens::Pallet<para::Runtime>;
+
+pub type RelayChainPalletXcm = pallet_xcm::Pallet<relay::Runtime>;
+pub type ParachainPalletXcm = pallet_xcm::Pallet<para::Runtime>;
 
 pub fn para_ext(para_id: u32) -> TestExternalities {
 	use para::{Runtime, System};
