@@ -19,10 +19,10 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
 
-cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.10", default-features = false }
+cumulus-primitives-core = { git = "https://github.com/zqhxuyuan/cumulus", branch = "tests_xcm", default-features = false }
 
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10", default-features = false }
-xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10", default-features = false }
+xcm = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm", default-features = false }
+xcm-executor = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm", default-features = false }
 
 orml-xcm-support = { path = "../xcm-support", default-features = false }
 orml-traits = { path = "../traits", default-features = false}
@@ -32,20 +32,20 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 
 # cumulus
-cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.10" }
-cumulus-pallet-dmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.10" }
-cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.10" }
-cumulus-pallet-xcm = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.10" }
-parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.10" }
+cumulus-primitives-core = { git = "https://github.com/zqhxuyuan/cumulus", branch = "tests_xcm" }
+cumulus-pallet-dmp-queue = { git = "https://github.com/zqhxuyuan/cumulus", branch = "tests_xcm" }
+cumulus-pallet-xcmp-queue = { git = "https://github.com/zqhxuyuan/cumulus", branch = "tests_xcm" }
+cumulus-pallet-xcm = { git = "https://github.com/zqhxuyuan/cumulus", branch = "tests_xcm" }
+parachain-info = { git = "https://github.com/zqhxuyuan/cumulus", branch = "tests_xcm" }
 
 # polkadot
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10" }
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10" }
-xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10" }
-xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10" }
-pallet-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10" }
-polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10" }
-xcm-simulator = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10"}
+polkadot-parachain = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm" }
+xcm = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm" }
+xcm-executor = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm" }
+xcm-builder = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm" }
+pallet-xcm = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm" }
+polkadot-runtime-parachains = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm" }
+xcm-simulator = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm"}
 
 orml-tokens = { path = "../tokens" }
 orml-xcm = { path = "../xcm" }

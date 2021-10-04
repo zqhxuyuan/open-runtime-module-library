@@ -23,6 +23,9 @@ use xcm_executor::{traits::WeightTrader, Assets, Config, XcmExecutor};
 
 use orml_traits::parameter_type_with_key;
 use orml_xcm_support::{IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
+use sp_std::marker::PhantomData;
+use frame_support::traits::OriginTrait;
+use xcm_executor::traits::ConvertOrigin;
 
 pub type AccountId = AccountId32;
 
@@ -119,6 +122,24 @@ pub type XcmOriginToCallOrigin = (
 	SignedAccountId32AsNative<RelayNetwork, Origin>,
 	XcmPassthrough<Origin>,
 );
+
+// pub struct SignedAccountId32AsNativeXcm<Network, Origin>(PhantomData<(Network, Origin)>);
+// impl<Network: Get<NetworkId>, Origin: OriginTrait> ConvertOrigin<Origin>
+// for SignedAccountId32AsNative<Network, Origin>
+// 	where
+// 		Origin::AccountId: From<[u8; 32]>,
+// {
+// 	fn convert_origin(origin: MultiLocation, kind: OriginKind) -> Result<Origin, MultiLocation> {
+// 		match (kind, origin) {
+// 			(
+// 				OriginKind::Native,
+// 				MultiLocation { parents: 1, interior: X1(Junction::AccountId32 { id, network }) },
+// 			) if matches!(network, NetworkId::Any) || network == Network::get() =>
+// 				Ok(Origin::signed(id.into())),
+// 			(_, origin) => Err(origin),
+// 		}
+// 	}
+// }
 
 parameter_types! {
 	pub const UnitWeightCost: Weight = 10;

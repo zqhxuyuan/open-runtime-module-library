@@ -14,6 +14,7 @@ pub mod relay;
 
 pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
 pub const ALICE1: AccountId32 = AccountId32::new([3u8; 32]);
+pub const ALICE9: AccountId32 = AccountId32::new([9u8; 32]);
 pub const BOB: AccountId32 = AccountId32::new([1u8; 32]);
 pub const Charlie: AccountId32 = AccountId32::new([2u8; 32]);
 pub const INITIAL_BALANCE: u128 = 1_000;

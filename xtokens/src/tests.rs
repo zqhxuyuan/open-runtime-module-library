@@ -407,6 +407,88 @@ fn test_origin_location_junction() {
 		network: NetworkId::Any,
 		id: [0u8; 32]
 	}));
+
+	// Relay发送Transact消息给平行链，设置的dest=Para(2)
+	let destination: MultiLocation = (
+		Parachain(2)
+	).into();
+	assert_eq!(destination.parents, 0);
+	assert_eq!(destination.interior, X1(Junction::Parachain(2)));
+
+	// let destination: MultiLocation = (
+	// 	Here,
+	// 	Parachain(2)
+	// ).into();
+	// assert_eq!(destination.parents, 0);
+	// assert_eq!(destination.interior, X1(Junction::Parachain(2)));
+
+	// Parent + Parachain + Account: 1, X2(Para, Acc)
+	let destination: MultiLocation = (
+		Parent,
+		Parachain(2),
+		Junction::AccountId32 {
+			network: NetworkId::Any,
+			id: BOB.into(),
+		},
+	).into();
+	// println!("{:?}", destination); // interior: X2(Parachain(2), AccountId...)
+	assert_eq!(destination.parents, 1);
+
+	// Parent + Parachain: 1, X1(Para)
+	let destination: MultiLocation = (
+		Parent,
+		Parachain(2),
+	).into();
+	println!("Parent + Parachain: {:?}", destination);
+	assert_eq!(destination.parents, 1);
+	assert_eq!(destination.interior, X1(Parachain(2)));
+
+	// Parachain + Account: 0, X2(Para, Acc)
+	let destination: MultiLocation = (
+		Parachain(2),
+		Junction::AccountId32 {
+			network: NetworkId::Any,
+			id: BOB.into(),
+		},
+	).into();
+	println!("Parachain + Account: {:?}", destination);
+	assert_eq!(destination.parents, 0);
+
+	// Account: 0, X1(Acc)
+	let destination: MultiLocation = (
+		Junction::AccountId32 {
+			network: NetworkId::Any,
+			id: BOB.into(),
+		},
+	).into();
+	assert_eq!(destination.parents, 0);
+
+	// Parent + Account: 1, X1(Acc)
+	let destination: MultiLocation = (
+		Parent,
+		Junction::AccountId32 {
+			network: NetworkId::Any,
+			id: BOB.into(),
+		},
+	).into();
+	assert_eq!(destination.parents, 1);
+
+	// location convert
+	let mut destination: MultiLocation = Parent.into();
+	// println!("{:?}", destination);
+	assert_eq!(destination.parents, 1);
+	assert_eq!(destination.interior, Here);
+
+	assert_eq!(destination.contains_parents_only(1), true);
+
+	let junction = X1(Junction::AccountId32 {
+		network: NetworkId::Any,
+		id: [9u8; 32]
+	});
+	destination.append_with(junction).unwrap();
+	println!("Parent append Account:{:?}", destination);
+	assert_eq!(destination.parents, 1);
+
 }
 
 #[test]
@@ -600,7 +682,7 @@ fn relay_send_transact_remark() {
 		assert_ok!(
 			RelayChainPalletXcm::send_xcm(
 				Here,
-				Parachain(1).into(),
+				Parachain(1).into(), // destination
 				Transact {
 					origin_type: OriginKind::SovereignAccount,
 					require_weight_at_most: 100000000000 as u64,
@@ -627,10 +709,13 @@ fn relay_send_transact_xcm() {
 
 	ParaA::execute_with(|| {
 		// assert_ok!(ParaTokens::deposit(CurrencyId::A, &ALICE, 1_000));
-		// ParaBalances::deposit_creating(&ALICE, 2_000); // 如果没有[0;32]，则转账失败，因为call的origin=[0;32]
-		ParaBalances::deposit_creating(&ALICE1, 2_000); // ALICE1的地址不是[0;32]
-		ParaBalances::deposit_creating(&Charlie, 3_000);
-		println!("total:{}", ParaBalances::total_issuance());
+		ParaBalances::deposit_creating(&ALICE, 2_000); // 如果没有[0;32]，则转账失败，因为call的origin=[0;32]
+		// ParaBalances::deposit_creating(&ALICE1, 2_000); // ALICE1的地址不是[0;32]
+		ParaBalances::deposit_creating(&ALICE9, 2_000); // ALICE1的地址不是[0;32]
+		// ParaBalances::deposit_creating(&Charlie, 3_000);
+		// println!("total:{}", ParaBalances::total_issuance());
+
+		println!("para alice:{}", ParaBalances::free_balance( &ALICE));
 	});
 
 	Relay::execute_with(|| {
@@ -645,7 +730,12 @@ fn relay_send_transact_xcm() {
 
 		assert_ok!(
 			RelayChainPalletXcm::send_xcm(
-				Here,
+				// Here,
+				// X1(ALICE),
+				X1(Junction::AccountId32 {
+					network: NetworkId::Any,
+					id: [9u8; 32]
+				}),
 				Parachain(1).into(),
 				Transact {
 					origin_type: OriginKind::SovereignAccount,
@@ -656,7 +746,7 @@ fn relay_send_transact_xcm() {
 			)
 		);
 
-		println!("alice:{}", RelayBalances::free_balance( &ALICE));
+		println!("relay alice:{}", RelayBalances::free_balance( &ALICE));
 	});
 
 	ParaA::execute_with(|| {
@@ -667,13 +757,65 @@ fn relay_send_transact_xcm() {
 	});
 
 	ParaA::execute_with(|| {
-		// println!("{}", ParaTokens::free_balance(CurrencyId::A, &ALICE));
+		// println!("para tokens alice:{}", ParaTokens::free_balance(CurrencyId::A, &ALICE));
 		// println!("{}", ParaTokens::free_balance(CurrencyId::A, &BOB));
 
-		println!("alice:{}", ParaBalances::free_balance( &ALICE1));
-		println!("bob:{}", ParaBalances::free_balance( &BOB));
-		println!("charlie:{}", ParaBalances::free_balance( &Charlie));
-		println!("total:{}", ParaBalances::total_issuance());
+		println!("para alice0:{}", ParaBalances::free_balance( &ALICE));
+		println!("para alice9:{}", ParaBalances::free_balance( &ALICE9));
+		// println!("para alice1:{}", ParaBalances::free_balance( &ALICE1));
+		println!("para bob:{}", ParaBalances::free_balance( &BOB));
+		// println!("charlie:{}", ParaBalances::free_balance( &Charlie));
+		// println!("total:{}", ParaBalances::total_issuance());
+	});
+}
+
+#[test]
+fn test_relay_send_transact_xcm() {
+	env_logger::init();
+
+	ParaA::execute_with(|| {
+		// deposit test account:Alice9 with initial balance
+		ParaBalances::deposit_creating(&ALICE9, 1_000);
+		assert_eq!(ParaBalances::free_balance(&ALICE9), 1_000);
+	});
+
+	Relay::execute_with(|| {
+		let call = para::Call::Balances(
+			// will transfer 500 balance to Bob on Parachain
+			pallet_balances::Call::<para::Runtime>::transfer(
+				BOB,
+				500,
+			),
+		);
+
+		assert_ok!(
+			RelayChainPalletXcm::send_xcm(
+				// Here,
+				// Alice9's AccountId, this account on para-chain will be withdrawed
+				X1(Junction::AccountId32 {
+					network: NetworkId::Any,
+					id: [9u8; 32]
+				}),
+				// dest parachain
+				Parachain(1).into(),
+				Transact {
+					origin_type: OriginKind::SovereignAccount,
+					// origin_type: OriginKind::Xcm,
+					require_weight_at_most: 100000000000 as u64,
+					call: call.encode().into(),
+				},
+			)
+		);
+
+		// Alice on relay chain is default initial, although it's not related other account in this testcase
+		assert_eq!(ParaBalances::free_balance(&ALICE), 1_000);
+	});
+
+	ParaA::execute_with(|| {
+		// Alice9 account on para-chain is withdraw
+		assert_eq!(ParaBalances::free_balance(&ALICE9), 500);
+		// Bob account on para-chain is deposited
+		assert_eq!(ParaBalances::free_balance(&BOB), 500);
 	});
 }
 

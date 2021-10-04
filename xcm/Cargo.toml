@@ -14,8 +14,8 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
 
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10", default-features = false }
-pallet-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10", default-features = false }
+xcm = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm", default-features = false }
+pallet-xcm = { git = "https://github.com/zqhxuyuan/polkadot", branch = "tests_xcm", default-features = false }
 
 [features]
 default = ["std"]
