@@ -26,6 +26,8 @@ use orml_xcm_support::{IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset}
 use sp_std::marker::PhantomData;
 use frame_support::traits::OriginTrait;
 use xcm_executor::traits::ConvertOrigin;
+use crate::mock::location::AccountId32Aliases2;
+// use xcm_executor::traits::{Convert, InvertLocation};
 
 pub type AccountId = AccountId32;
 
@@ -112,7 +114,8 @@ parameter_types! {
 pub type LocationToAccountId = (
 	ParentIsDefault<AccountId>,
 	SiblingParachainConvertsVia<Sibling, AccountId>,
-	AccountId32Aliases<RelayNetwork, AccountId>,
+	// AccountId32Aliases<RelayNetwork, AccountId>,
+	AccountId32Aliases2<RelayNetwork, AccountId>,
 );
 
 pub type XcmOriginToCallOrigin = (
@@ -122,24 +125,6 @@ pub type XcmOriginToCallOrigin = (
 	SignedAccountId32AsNative<RelayNetwork, Origin>,
 	XcmPassthrough<Origin>,
 );
-
-// pub struct SignedAccountId32AsNativeXcm<Network, Origin>(PhantomData<(Network, Origin)>);
-// impl<Network: Get<NetworkId>, Origin: OriginTrait> ConvertOrigin<Origin>
-// for SignedAccountId32AsNative<Network, Origin>
-// 	where
-// 		Origin::AccountId: From<[u8; 32]>,
-// {
-// 	fn convert_origin(origin: MultiLocation, kind: OriginKind) -> Result<Origin, MultiLocation> {
-// 		match (kind, origin) {
-// 			(
-// 				OriginKind::Native,
-// 				MultiLocation { parents: 1, interior: X1(Junction::AccountId32 { id, network }) },
-// 			) if matches!(network, NetworkId::Any) || network == Network::get() =>
-// 				Ok(Origin::signed(id.into())),
-// 			(_, origin) => Err(origin),
-// 		}
-// 	}
-// }
 
 parameter_types! {
 	pub const UnitWeightCost: Weight = 10;

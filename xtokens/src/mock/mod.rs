@@ -11,6 +11,7 @@ use xcm_simulator::{decl_test_network, decl_test_parachain, decl_test_relay_chai
 
 pub mod para;
 pub mod relay;
+pub mod location;
 
 pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
 pub const ALICE1: AccountId32 = AccountId32::new([3u8; 32]);

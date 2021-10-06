@@ -17,6 +17,8 @@ use crate::mock::relay::KsmLocation;
 use xcm_executor::traits::MatchesFungible;
 use orml_xcm_support::IsNativeConcrete;
 use sp_std::convert::TryInto;
+use sp_core::crypto::{Ss58Codec, Ss58AddressFormat};
+use sp_core::sr25519::Pair;
 
 fn para_a_account() -> AccountId32 {
 	ParaId::from(1).into_account()
@@ -573,7 +575,7 @@ fn transform_by_currency(currency: CurrencyId, dest: MultiLocation) -> (MultiAss
 // R - [B] -> B
 #[test]
 fn relaychain_send_parachain_asset_to_parachain() {
-	env_logger::init();
+	// env_logger::init();
 	TestNet::reset();
 
 	Relay::execute_with(|| {
@@ -705,7 +707,7 @@ fn relay_send_transact_remark() {
 
 #[test]
 fn relay_send_transact_xcm() {
-	env_logger::init();
+	// env_logger::init();
 
 	ParaA::execute_with(|| {
 		// assert_ok!(ParaTokens::deposit(CurrencyId::A, &ALICE, 1_000));
@@ -771,7 +773,7 @@ fn relay_send_transact_xcm() {
 
 #[test]
 fn test_relay_send_transact_xcm() {
-	env_logger::init();
+	// env_logger::init();
 
 	ParaA::execute_with(|| {
 		// deposit test account:Alice9 with initial balance
@@ -795,6 +797,65 @@ fn test_relay_send_transact_xcm() {
 				X1(Junction::AccountId32 {
 					network: NetworkId::Any,
 					id: [9u8; 32]
+				}),
+				// dest parachain
+				Parachain(1).into(),
+				Transact {
+					origin_type: OriginKind::SovereignAccount,
+					// origin_type: OriginKind::Xcm,
+					require_weight_at_most: 100000000000 as u64,
+					call: call.encode().into(),
+				},
+			)
+		);
+
+		// Alice on relay chain is default initial, although it's not related other account in this testcase
+		assert_eq!(ParaBalances::free_balance(&ALICE), 1_000);
+	});
+
+	ParaA::execute_with(|| {
+		// Alice9 account on para-chain is withdraw
+		assert_eq!(ParaBalances::free_balance(&ALICE9), 500);
+		// Bob account on para-chain is deposited
+		assert_eq!(ParaBalances::free_balance(&BOB), 500);
+	});
+}
+
+#[test]
+fn test_relay_send_transact_xcm_para_account() {
+	// env_logger::init();
+
+	ParaA::execute_with(|| {
+		// deposit test account:Alice9 with initial balance
+		ParaBalances::deposit_creating(&ALICE9, 1_000);
+		assert_eq!(ParaBalances::free_balance(&ALICE9), 1_000);
+	});
+
+	Relay::execute_with(|| {
+		let call = para::Call::Balances(
+			// will transfer 500 balance to Bob on Parachain
+			pallet_balances::Call::<para::Runtime>::transfer(
+				BOB,
+				500,
+			),
+		);
+
+		// do not need this transform, because although different chain have different address,
+		// but they all have the same AccountId
+		let dest_parachain_network = Ss58AddressFormat::KaruraAccount;
+		let dest_name = dest_parachain_network.to_string();
+		let dest_named = dest_name.as_bytes().to_vec();
+		let alice9: [u8; 32] = ALICE9.into();
+		println!("id:{:?}", alice9);
+
+		assert_ok!(
+			RelayChainPalletXcm::send_xcm(
+				// Here,
+				// Alice9's AccountId, this account on para-chain will be withdrawed
+				X1(Junction::AccountId32 {
+					// network: NetworkId::Named(dest_named),
+					network: NetworkId::Any,
+					id: alice9
 				}),
 				// dest parachain
 				Parachain(1).into(),
