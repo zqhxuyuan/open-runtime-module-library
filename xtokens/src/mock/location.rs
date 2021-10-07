@@ -20,10 +20,10 @@ Convert<MultiLocation, AccountId> for AccountId32Aliases2<Network, AccountId>
                 parents: 1,
                 interior: X1(Junction::AccountId32 { id, network: NetworkId::Any }),
             } => id,
-            MultiLocation {
-                parents: 1,
-                interior: X2(Junction::Parachain(para), Junction::AccountId32 { id, network: NetworkId::Any }),
-            } => id,
+            // MultiLocation {
+            //     parents: 1,
+            //     interior: X2(Junction::Parachain(para), Junction::AccountId32 { id, network: NetworkId::Any }),
+            // } => id,
             MultiLocation {
                 parents: 0,
                 interior: X1(Junction::AccountId32 { id, network }) }
