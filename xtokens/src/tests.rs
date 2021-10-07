@@ -1034,6 +1034,49 @@ fn test_parachain_send_transact_xcm() {
 }
 
 #[test]
+fn test_parachain_send_transact_xcm_bad_origin() {
+	env_logger::init();
+
+	ParaB::execute_with(|| {
+		ParaBalances::deposit_creating(&ALICE9, 1_000);
+		assert_eq!(ParaBalances::free_balance(&ALICE9), 1_000);
+	});
+
+	ParaA::execute_with(|| {
+		let call = para::Call::Balances(
+			pallet_balances::Call::<para::Runtime>::transfer(
+				BOB,
+				500,
+			),
+		);
+
+		assert_ok!(
+			ParachainPalletXcm::send_xcm(
+				// Here,
+				X1(Junction::AccountId32 {
+					network: NetworkId::Any,
+					id: [9u8; 32]
+				}),
+				// dest parachain
+				MultiLocation::new(1, X1(Parachain(2))),
+				Transact {
+					origin_type: OriginKind::SovereignAccount,
+					// origin_type: OriginKind::Xcm,
+					require_weight_at_most: 100000000000 as u64,
+					call: call.encode().into(),
+				},
+			)
+		);
+
+	});
+
+	ParaB::execute_with(|| {
+		assert_eq!(ParaBalances::free_balance(&ALICE9), 1000);
+		assert_eq!(ParaBalances::free_balance(&BOB), 0);
+	});
+}
+
+#[test]
 fn send_sibling_asset_to_non_reserve_sibling() {
 	TestNet::reset();
 
