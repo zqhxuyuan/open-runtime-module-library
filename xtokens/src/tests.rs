@@ -706,6 +706,101 @@ fn relay_send_transact_remark() {
 }
 
 #[test]
+fn para_send_transact_remark() {
+	ParaA::execute_with(|| {
+		let call = relay::Call::System(frame_system::Call::<relay::Runtime>::remark_with_event(
+			vec![1, 2, 3]
+		));
+
+		assert_ok!(
+			ParachainPalletXcm::send_xcm(
+				Here,
+				Parent.into(), // destination
+				Transact {
+					origin_type: OriginKind::SovereignAccount,
+					require_weight_at_most: 100000000000 as u64,
+					call: call.encode().into(),
+				},
+			)
+		);
+	});
+
+	Relay::execute_with(|| {
+		use relay::{Event, System};
+		for ev in System::events() {
+			println!("{:?}", ev.event);
+		}
+		assert!(System::events()
+			.iter()
+			.any(|r| matches!(r.event, Event::System(frame_system::Event::Remarked(_, _)))));
+	});
+}
+
+#[test]
+fn para_send_transact_relay_inner_send_to_para() {
+	env_logger::init();
+
+	ParaA::execute_with(|| {
+
+		// let call = relay::Call::System(frame_system::Call::<relay::Runtime>::remark_with_event(
+		// 	vec![1, 2, 3]
+		// ));
+
+		let call_para = para::Call::System(frame_system::Call::<para::Runtime>::remark_with_event(
+			vec![1, 2, 3]
+		));
+		// let call_para = para::Call::Balances(
+		// 	pallet_balances::Call::<para::Runtime>::transfer(
+		// 		BOB,
+		// 		500,
+		// 	),
+		// );
+
+		let call_relay = relay::Call::XcmPallet(pallet_xcm::Call::<relay::Runtime>::send(
+				// Some(ALICE).into(),
+				Box::new(VersionedMultiLocation::V1(Parachain(2).into())),
+				Box::new(VersionedXcm::V1(Transact {
+					origin_type: OriginKind::SovereignAccount,
+					require_weight_at_most: 100000000000,
+					call: call_para.encode().into()
+				})),
+		));
+
+		assert_ok!(
+			ParachainPalletXcm::send_xcm(
+				Here,
+				// X1(Junction::AccountId32 {
+				// 	network: NetworkId::Any,
+				// 	id: [0u8; 32]
+				// }),
+				Parent.into(), // destination
+				Transact {
+					origin_type: OriginKind::SovereignAccount,
+					require_weight_at_most: 100000000000 as u64,
+					call: call_relay.encode().into(),
+				},
+			)
+		);
+	});
+
+	Relay::execute_with(|| {
+		use relay::{Event, System};
+		for ev in System::events() {
+			println!("Relay {:?}", ev.event);
+		}
+		// assert!(System::events()
+		// 	.iter()
+		// 	.any(|r| matches!(r.event, Event::System(frame_system::Event::Remarked(_, _)))));
+	});
+	ParaB::execute_with(|| {
+		use para::{Event, System};
+		for ev in System::events() {
+			println!("ParaB {:?}", ev.event);
+		}
+	});
+}
+
+#[test]
 fn relay_send_transact_xcm() {
 	// env_logger::init();
 
@@ -840,6 +935,10 @@ fn test_relay_send_transact_xcm_para_account() {
 			),
 		);
 
+		let signed = para::Origin::signed(ALICE);
+		let who = ensure_signed(signed).unwrap();
+		println!("who:{}", who);
+
 		// do not need this transform, because although different chain have different address,
 		// but they all have the same AccountId
 		let dest_parachain_network = Ss58AddressFormat::KaruraAccount;
@@ -873,6 +972,60 @@ fn test_relay_send_transact_xcm_para_account() {
 	});
 
 	ParaA::execute_with(|| {
+		// Alice9 account on para-chain is withdraw
+		assert_eq!(ParaBalances::free_balance(&ALICE9), 500);
+		// Bob account on para-chain is deposited
+		assert_eq!(ParaBalances::free_balance(&BOB), 500);
+	});
+}
+
+#[test]
+fn test_parachain_send_transact_xcm() {
+	env_logger::init();
+
+	// ParaA::execute_with(|| {
+	// 	ParaBalances::deposit_creating(&ALICE9, 1_000);
+	// 	assert_eq!(ParaBalances::free_balance(&ALICE9), 1_000);
+	// });
+	ParaB::execute_with(|| {
+		ParaBalances::deposit_creating(&ALICE9, 1_000);
+		assert_eq!(ParaBalances::free_balance(&ALICE9), 1_000);
+	});
+
+	ParaA::execute_with(|| {
+		let call = para::Call::Balances(
+			// will transfer 500 balance to Bob on Parachain
+			pallet_balances::Call::<para::Runtime>::transfer(
+				BOB,
+				500,
+			),
+		);
+
+		assert_ok!(
+			ParachainPalletXcm::send_xcm(
+				// Here,
+				X1(Junction::AccountId32 {
+					// network: NetworkId::Named(dest_named),
+					network: NetworkId::Any,
+					id: [9u8; 32]
+				}),
+				// dest parachain
+				// Parachain(1).into(),
+				MultiLocation::new(1, X1(Parachain(2))),
+				Transact {
+					origin_type: OriginKind::SovereignAccount,
+					// origin_type: OriginKind::Xcm,
+					require_weight_at_most: 100000000000 as u64,
+					call: call.encode().into(),
+				},
+			)
+		);
+
+		// Alice on relay chain is default initial, although it's not related other account in this testcase
+		// assert_eq!(ParaBalances::free_balance(&ALICE9), 1_000);
+	});
+
+	ParaB::execute_with(|| {
 		// Alice9 account on para-chain is withdraw
 		assert_eq!(ParaBalances::free_balance(&ALICE9), 500);
 		// Bob account on para-chain is deposited
@@ -1036,15 +1189,18 @@ fn transfer_to_invalid_dest_fails() {
 fn send_as_sovereign() {
 	TestNet::reset();
 
+	let init: u128 = 1_000_000_000_000;
+	let amount = 1_000_000_000;
+
 	Relay::execute_with(|| {
-		let _ = RelayBalances::deposit_creating(&para_a_account(), 1_000_000_000_000);
+		let _ = RelayBalances::deposit_creating(&para_a_account(), init);
 	});
 
 	ParaA::execute_with(|| {
 		use xcm::latest::OriginKind::SovereignAccount;
 
 		let call = relay::Call::System(frame_system::Call::<relay::Runtime>::remark_with_event(vec![1, 1, 1]));
-		let assets: MultiAsset = (Here, 1_000_000_000_000).into();
+		let assets: MultiAsset = (Here, amount).into();
 		assert_ok!(para::OrmlXcm::send_as_sovereign(
 			para::Origin::root(),
 			Box::new(MultiLocation::parent()),
@@ -1066,6 +1222,9 @@ fn send_as_sovereign() {
 	});
 
 	Relay::execute_with(|| {
+		// println!("para_a:{}", RelayBalances::free_balance(&para_a_account()));
+		assert_eq!(RelayBalances::free_balance(&para_a_account()), init - amount);
+
 		relay::System::events().iter().any(|r| {
 			matches!(
 				r.event,
