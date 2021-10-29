@@ -10,11 +10,18 @@ use sp_runtime::AccountId32;
 
 use xcm_simulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
 
+use cumulus_primitives_core::ParaId;
+use polkadot_parachain::primitives::{AccountIdConversion, Sibling};
+
 pub mod para;
 pub mod relay;
+mod tests;
 
-pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
-pub const BOB: AccountId32 = AccountId32::new([1u8; 32]);
+pub const GOD: AccountId32 = AccountId32::new([0u8; 32]);
+pub const ALICE: AccountId32 = AccountId32::new([1u8; 32]);
+pub const BOB: AccountId32 = AccountId32::new([2u8; 32]);
+pub const CHARLIE: AccountId32 = AccountId32::new([3u8; 32]);
+pub const INITIAL_BALANCE: u128 = 1_000;
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -25,6 +32,29 @@ pub enum CurrencyId {
 	A,
 	/// Parachain B token.
 	B,
+}
+
+pub fn para_a_account() -> AccountId32 {
+	ParaId::from(1).into_account()
+}
+
+pub fn para_b_account() -> AccountId32 {
+	ParaId::from(2).into_account()
+}
+
+pub fn sibling_a_account() -> AccountId32 {
+	use sp_runtime::traits::AccountIdConversion;
+	Sibling::from(1).into_account()
+}
+
+pub fn sibling_b_account() -> AccountId32 {
+	use sp_runtime::traits::AccountIdConversion;
+	Sibling::from(2).into_account()
+}
+
+pub fn sibling_c_account() -> AccountId32 {
+	use sp_runtime::traits::AccountIdConversion;
+	Sibling::from(3).into_account()
 }
 
 pub struct CurrencyIdConvert;
@@ -118,8 +148,13 @@ decl_test_network! {
 }
 
 pub type RelayBalances = pallet_balances::Pallet<relay::Runtime>;
+pub type ParaBalances = pallet_balances::Pallet<para::Runtime>;
+
 pub type ParaTokens = orml_tokens::Pallet<para::Runtime>;
 pub type ParaXTokens = orml_xtokens::Pallet<para::Runtime>;
+
+pub type RelayChainPalletXcm = pallet_xcm::Pallet<relay::Runtime>;
+pub type ParachainPalletXcm = pallet_xcm::Pallet<para::Runtime>;
 
 pub fn para_ext(para_id: u32) -> TestExternalities {
 	use para::{Runtime, System};
@@ -135,7 +170,7 @@ pub fn para_ext(para_id: u32) -> TestExternalities {
 		.unwrap();
 
 	orml_tokens::GenesisConfig::<Runtime> {
-		balances: vec![(ALICE, CurrencyId::R, 1_000)],
+		balances: vec![(ALICE, CurrencyId::R, INITIAL_BALANCE)],
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
@@ -153,7 +188,7 @@ pub fn relay_ext() -> sp_io::TestExternalities {
 		.unwrap();
 
 	pallet_balances::GenesisConfig::<Runtime> {
-		balances: vec![(ALICE, 1_000)],
+		balances: vec![(ALICE, INITIAL_BALANCE)],
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();

@@ -9,29 +9,7 @@ use orml_traits::{ConcreteFungibleAsset, MultiCurrency};
 use polkadot_parachain::primitives::{AccountIdConversion, Sibling};
 use sp_runtime::AccountId32;
 use xcm_simulator::TestExt;
-
-fn para_a_account() -> AccountId32 {
-	ParaId::from(1).into_account()
-}
-
-fn para_b_account() -> AccountId32 {
-	ParaId::from(2).into_account()
-}
-
-fn sibling_a_account() -> AccountId32 {
-	use sp_runtime::traits::AccountIdConversion;
-	Sibling::from(1).into_account()
-}
-
-fn sibling_b_account() -> AccountId32 {
-	use sp_runtime::traits::AccountIdConversion;
-	Sibling::from(2).into_account()
-}
-
-fn sibling_c_account() -> AccountId32 {
-	use sp_runtime::traits::AccountIdConversion;
-	Sibling::from(3).into_account()
-}
+use xcm_builder::LocationInverter;
 
 // Not used in any unit tests, but it's super helpful for debugging. Let's
 // keep it here.
@@ -152,6 +130,7 @@ fn send_relay_chain_asset_to_sibling() {
 #[test]
 fn send_sibling_asset_to_reserve_sibling() {
 	TestNet::reset();
+	// env_logger::init();
 
 	ParaA::execute_with(|| {
 		assert_ok!(ParaTokens::deposit(CurrencyId::B, &ALICE, 1_000));

@@ -26,7 +26,7 @@ use xcm_builder::{
 use xcm_executor::{traits::WeightTrader, Assets, Config, XcmExecutor};
 
 use orml_traits::parameter_type_with_key;
-use orml_xcm_support::{IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
+use orml_xcm_support::{IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset, RelaychainAccountId32Aliases};
 
 pub type AccountId = AccountId32;
 
@@ -111,9 +111,10 @@ parameter_types! {
 }
 
 pub type LocationToAccountId = (
-	ParentIsDefault<AccountId>,
+	// ParentIsDefault<AccountId>,
 	SiblingParachainConvertsVia<Sibling, AccountId>,
 	AccountId32Aliases<RelayNetwork, AccountId>,
+	RelaychainAccountId32Aliases<RelayNetwork, AccountId>,
 );
 
 pub type XcmOriginToCallOrigin = (
@@ -192,6 +193,7 @@ impl Config for XcmConfig {
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToCallOrigin;
 	type IsReserve = MultiNativeAsset;
+	// type IsReserve = ();
 	type IsTeleporter = ();
 	type LocationInverter = LocationInverter<Ancestry>;
 	type Barrier = Barrier;
