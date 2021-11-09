@@ -268,7 +268,7 @@ fn send_self_parachain_asset_to_sibling() {
 
 	ParaB::execute_with(|| {
 		// assert_eq!(ParaTokens::free_balance(CurrencyId::A, &BOB), 460);
-		assert_eq!(ParaBTokens::free_balance(CurrencyId::A, &BOB), 460);
+		assert_eq!(ParaBTokens::free_balance(CurrencyId::A, &BOB), 0);
 	});
 }
 

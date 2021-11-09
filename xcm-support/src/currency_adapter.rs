@@ -83,7 +83,8 @@ impl<
 				MultiCurrency::deposit(currency_id, &who, amount).map_err(|e| XcmError::FailedToTransactAsset(e.into()))
 			}
 			// unknown asset
-			_ => UnknownAsset::deposit(asset, location).map_err(|e| XcmError::FailedToTransactAsset(e.into())),
+			// _ => UnknownAsset::deposit(asset, location).map_err(|e| XcmError::FailedToTransactAsset(e.into())),
+			_ => Err(XcmError::FailedToTransactAsset("unknown-asset"))
 		}
 	}
 
