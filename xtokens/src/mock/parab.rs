@@ -1,4 +1,4 @@
-use super::{Amount, Balance, CurrencyId, CurrencyIdConvert, ParachainXcmRouter};
+use super::{Amount, Balance, CurrencyId, CurrencyIdConvertB, ParachainXcmRouter};
 use crate as orml_xtokens;
 
 use frame_support::{
@@ -132,11 +132,11 @@ parameter_types! {
 pub type LocalAssetTransactor = MultiCurrencyAdapter<
 	Tokens,
 	UnknownTokens,
-	IsNativeConcrete<CurrencyId, CurrencyIdConvert>,
+	IsNativeConcrete<CurrencyId, CurrencyIdConvertB>,
 	AccountId,
 	LocationToAccountId,
 	CurrencyId,
-	CurrencyIdConvert,
+	CurrencyIdConvertB,
 >;
 
 pub type XcmRouter = ParachainXcmRouter<ParachainInfo>;
@@ -198,7 +198,7 @@ impl Config for XcmConfig {
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type Trader = AllTokensAreCreatedEqualToWeight;
 	type ResponseHandler = ();
-	type AssetTrap = ();
+	type AssetTrap = PolkadotXcm;
 	type AssetClaims = ();
 	type SubscriptionService = PolkadotXcm;
 }
@@ -270,7 +270,7 @@ impl orml_xtokens::Config for Runtime {
 	type Event = Event;
 	type Balance = Balance;
 	type CurrencyId = CurrencyId;
-	type CurrencyIdConvert = CurrencyIdConvert;
+	type CurrencyIdConvert = CurrencyIdConvertB;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
 	type SelfLocation = SelfLocation;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
