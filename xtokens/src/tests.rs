@@ -238,6 +238,7 @@ fn send_sibling_asset_to_non_reserve_sibling() {
 #[test]
 fn send_self_parachain_asset_to_sibling() {
 	TestNet::reset();
+	env_logger::init();
 
 	ParaA::execute_with(|| {
 		assert_ok!(ParaTokens::deposit(CurrencyId::A, &ALICE, 1_000));
@@ -259,7 +260,8 @@ fn send_self_parachain_asset_to_sibling() {
 				)
 				.into()
 			),
-			40,
+			100,
+			// 40,
 		));
 
 		assert_eq!(ParaTokens::free_balance(CurrencyId::A, &ALICE), 500);

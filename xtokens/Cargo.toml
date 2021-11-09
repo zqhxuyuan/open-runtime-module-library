@@ -27,6 +27,8 @@ orml-xcm-support = { path = "../xcm-support", default-features = false }
 orml-traits = { path = "../traits", default-features = false}
 
 [dev-dependencies]
+env_logger = "0.8.3"
+
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 

@@ -267,7 +267,14 @@ pub mod module {
 					max_assets: 1,
 					dest: dest.clone(),
 					xcm: Xcm(vec![
-						Self::buy_execution(asset, &dest, dest_weight)?,
+						Self::buy_execution(asset.clone(), &dest, dest_weight)?,
+						SetAppendix(Xcm(vec![
+							RefundSurplus,
+						])),
+						// SetErrorHandler(Xcm(vec![
+						// 	RefundSurplus,
+						// 	ReserveAssetDeposited(asset.clone().into()),
+						// ])),
 						Self::deposit_asset(recipient),
 					]),
 				},
