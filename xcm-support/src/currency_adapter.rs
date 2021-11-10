@@ -15,6 +15,8 @@ use xcm_executor::{
 };
 
 use crate::UnknownAsset as UnknownAssetT;
+use xcm_executor::traits::DropAssets as DropAssetsT;
+use core::panicking::assert_failed;
 
 /// Asset transaction errors.
 enum Error {
@@ -44,6 +46,7 @@ impl From<Error> for XcmError {
 pub struct MultiCurrencyAdapter<
 	MultiCurrency,
 	UnknownAsset,
+	// DropAssets,
 	Match,
 	AccountId,
 	AccountIdConvert,
@@ -53,6 +56,7 @@ pub struct MultiCurrencyAdapter<
 	PhantomData<(
 		MultiCurrency,
 		UnknownAsset,
+		// DropAssets,
 		Match,
 		AccountId,
 		AccountIdConvert,
@@ -64,6 +68,7 @@ pub struct MultiCurrencyAdapter<
 impl<
 		MultiCurrency: orml_traits::MultiCurrency<AccountId, CurrencyId = CurrencyId>,
 		UnknownAsset: UnknownAssetT,
+		// DropAssets: DropAssetsT,
 		Match: MatchesFungible<MultiCurrency::Balance>,
 		AccountId: sp_std::fmt::Debug + Clone,
 		AccountIdConvert: MoreConvert<MultiLocation, AccountId>,
@@ -85,6 +90,9 @@ impl<
 			// unknown asset
 			// _ => UnknownAsset::deposit(asset, location).map_err(|e| XcmError::FailedToTransactAsset(e.into())),
 			_ => Err(XcmError::FailedToTransactAsset("unknown-asset"))
+			// _ => {
+			// 	DropAssets::drop_assets(location, asset.into())
+			// }
 		}
 	}
 
