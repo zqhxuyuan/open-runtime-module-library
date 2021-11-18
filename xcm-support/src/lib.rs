@@ -165,8 +165,8 @@ impl<T: Contains<MultiLocation>, Network: Get<NetworkId>> ShouldExecute
 				network: NetworkId::Any,
 				..
 			})) => (),
-			DescendOrigin(X1(Junction::AccountId32 { network, .. })) if network
-		== &Network::get() => (), 	_ => return Err(()),
+			DescendOrigin(X1(Junction::AccountId32 { network, .. })) if network == &Network::get() => (),
+			_ => return Err(()),
 		}
 		let i = iter.next().ok_or(())?;
 		match i {
@@ -189,7 +189,9 @@ impl<T: Contains<MultiLocation>, Network: Get<NetworkId>> ShouldExecute
 			Transact {
 				origin_type: OriginKind::SovereignAccount,
 				..
-			} | WithdrawAsset(..) | DepositAsset{..} => Ok(()),
+			}
+			| WithdrawAsset(..)
+			| DepositAsset { .. } => Ok(()),
 			_ => Err(()),
 		}
 	}
