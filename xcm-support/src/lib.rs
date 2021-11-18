@@ -158,41 +158,39 @@ impl<T: Contains<MultiLocation>, Network: Get<NetworkId>> ShouldExecute
 		_weight_credit: &mut Weight,
 	) -> Result<(), ()> {
 		ensure!(T::contains(origin), ());
-		Ok(())
-		// let mut iter = message.0.iter_mut();
-		// let i = iter.next().ok_or(())?;
-		// match i {
-		// 	DescendOrigin(X1(Junction::AccountId32 {
-		// 		network: NetworkId::Any,
-		// 		..
-		// 	})) => (),
-		// 	DescendOrigin(X1(Junction::AccountId32 { network, .. })) if network
-		// == &Network::get() => (), 	_ => return Err(()),
-		// }
-		// let i = iter.next().ok_or(())?;
-		// match i {
-		// 	WithdrawAsset(..) | ReserveAssetDeposited(..) => (),
-		// 	_ => return Err(()),
-		// }
-		// let i = iter.next().ok_or(())?;
-		// match i {
-		// 	BuyExecution {
-		// 		weight_limit: Limited(ref mut weight),
-		// 		..
-		// 	} if *weight >= max_weight => {
-		// 		*weight = max_weight;
-		// 		()
-		// 	}
-		// 	_ => return Err(()),
-		// }
-		// let i = iter.next().ok_or(())?;
-		// match i {
-		// 	Transact {
-		// 		origin_type: OriginKind::SovereignAccount,
-		// 		..
-		// 	} => Ok(()),
-		// 	WithdrawAsset(..) => Ok(()),
-		// 	_ => Err(()),
-		// }
+		let mut iter = message.0.iter_mut();
+		let i = iter.next().ok_or(())?;
+		match i {
+			DescendOrigin(X1(Junction::AccountId32 {
+				network: NetworkId::Any,
+				..
+			})) => (),
+			DescendOrigin(X1(Junction::AccountId32 { network, .. })) if network
+		== &Network::get() => (), 	_ => return Err(()),
+		}
+		let i = iter.next().ok_or(())?;
+		match i {
+			WithdrawAsset(..) | ReserveAssetDeposited(..) => (),
+			_ => return Err(()),
+		}
+		let i = iter.next().ok_or(())?;
+		match i {
+			BuyExecution {
+				weight_limit: Limited(ref mut weight),
+				..
+			} if *weight >= max_weight => {
+				*weight = max_weight;
+				()
+			}
+			_ => return Err(()),
+		}
+		let i = iter.next().ok_or(())?;
+		match i {
+			Transact {
+				origin_type: OriginKind::SovereignAccount,
+				..
+			} | WithdrawAsset(..) | DepositAsset{..} => Ok(()),
+			_ => Err(()),
+		}
 	}
 }

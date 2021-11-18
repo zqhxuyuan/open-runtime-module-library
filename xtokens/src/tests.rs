@@ -442,7 +442,7 @@ fn relay_transact_to_para_remark_use_default_sovereign_account() {
 // (Relay) reserve_transfer_assets
 #[test]
 fn send_relay_chain_asset_to_para_chain_reserve_transfer_assets_works() {
-	env_logger::init();
+	// env_logger::init();
 	let withdraw_amount = 123;
 
 	// 中继链转平行，通过reserve transfer asset，不需要通过xtokens
@@ -486,7 +486,7 @@ fn send_relay_chain_asset_to_para_chain_reserve_transfer_assets_works() {
 // (Relay) TransferReserveAsset + { xcm: Transact }
 #[test]
 fn relay_transact_to_para_remark_use_normal_account_transfer_reserve_asset_bad_origin() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -546,7 +546,7 @@ fn relay_transact_to_para_remark_use_normal_account_transfer_reserve_asset_bad_o
 // (Relay) WithdrawAsset + DepositReserveAsset + { xcm: Transact }
 #[test]
 fn relay_transact_to_para_remark_use_normal_account_deposit_reserve_asset_bad_origin() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -602,7 +602,7 @@ fn relay_transact_to_para_remark_use_normal_account_deposit_reserve_asset_bad_or
 // (Relay) TransferReserveAsset + { xcm: WithdrawAsset }
 #[test]
 fn relay_to_para_buy_withdraw_deposit_bad_origin() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -666,7 +666,7 @@ fn relay_to_para_buy_withdraw_deposit_bad_origin() {
 // (Para) ReserveAssetDeposited + Transact + DepositAsset
 #[test]
 fn relay_transact_to_para_remark_use_normal_account_deposit_reserve_unexpected() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -719,7 +719,7 @@ fn relay_transact_to_para_remark_use_normal_account_deposit_reserve_unexpected()
 // (Para) WithdrawAsset + Transact + DepositAsset
 #[test]
 fn relay_transact_to_para_remark_use_normal_account_deposit_A_works() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -777,7 +777,7 @@ fn relay_transact_to_para_remark_use_normal_account_deposit_A_works() {
 // (Para) WithdrawAsset + Transact + DepositAsset
 #[test]
 fn relay_transact_to_para_remark_use_normal_account_deposit_R_works() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -840,7 +840,7 @@ fn relay_transact_to_para_remark_use_normal_account_deposit_R_works() {
 // (Para) WithdrawAsset + Transact(remark) + DepositAsset
 #[test]
 fn relay_transact_to_para_remark_use_normal_account_deposit_RA_works() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -945,7 +945,7 @@ fn relay_transact_to_para_remark_use_normal_account_deposit_RA_works() {
 // (Para) WithdrawAsset + Transact(transfer) + DepositAsset
 #[test]
 fn relay_transact_to_para_transfer_use_normal_account_deposit_RA_works() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	// transfer call
@@ -1064,7 +1064,7 @@ fn relay_transact_to_para_transfer_use_normal_account_deposit_RA_works() {
 // (Para) WithdrawAsset + Transact(remark)
 #[test]
 fn relay_transact_to_para_remark_use_normal_account_R_works() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -1121,7 +1121,7 @@ fn relay_transact_to_para_remark_use_normal_account_R_works() {
 // WithdrawAsset(Parent) + WithdrawAsset(Here) + Deposit(1, Here) -> AssetTraps
 #[test]
 fn relay_to_para_withdraw_two_times_with_different_token_trap1_works() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -1189,7 +1189,7 @@ fn relay_to_para_withdraw_two_times_with_different_token_trap1_works() {
 // WithdrawAsset(Parent) + WithdrawAsset(Here) + Deposit(2, Here) -> NoTrap
 #[test]
 fn relay_to_para_withdraw_two_times_with_different_token_notrap_works() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	// Alice has 1000 R and 1000 A
@@ -1215,8 +1215,7 @@ fn relay_to_para_withdraw_two_times_with_different_token_notrap_works() {
 			WithdrawAsset(assets.clone().into()), // withdraw 500 R to holding ==> left 500 R -> Alice
 			BuyExecution {
 				fees: assets, // [holding: 500 R] - [fee: 50] = [holding: 450 R]
-				// weight_limit: Limited(50 as u64),
-				weight_limit: Limited(10 as u64),
+				weight_limit: Limited(50 as u64),
 			},
 			WithdrawAsset(assets_para.into()), // withdraw 500 A to holding ==> left 500 A -> Alice
 			DepositAsset {
@@ -1239,15 +1238,14 @@ fn relay_to_para_withdraw_two_times_with_different_token_notrap_works() {
 		assert_eq!(500, ParaTokens::free_balance(CurrencyId::A, &ALICE));
 		assert_eq!(500, ParaTokens::free_balance(CurrencyId::A, &BOB));
 		assert_eq!(500, ParaTokens::free_balance(CurrencyId::R, &ALICE));
-		// assert_eq!(450, ParaTokens::free_balance(CurrencyId::R, &BOB));
-		assert_eq!(490, ParaTokens::free_balance(CurrencyId::R, &BOB));
+		assert_eq!(450, ParaTokens::free_balance(CurrencyId::R, &BOB));
 	});
 }
 
 // (Para) WithdrawAsset(Here) + BuyExecution(Here) + DepositAsset
 #[test]
 fn relay_to_para_withdraw_here_buy_deposit_works() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	// Alice has 1000 A on parachain
@@ -1269,8 +1267,8 @@ fn relay_to_para_withdraw_here_buy_deposit_works() {
 			// withdraw 500 A to holding ==> left 500 A -> Alice on parachain
 			WithdrawAsset(assets_para.clone().into()),
 			BuyExecution {
-				fees: assets_para, // [holding: 500 A] - [fee: 10] = [holding: 490 A]
-				weight_limit: Limited(10 as u64),
+				fees: assets_para, // [holding: 500 A] - [fee: 40] = [holding: 460 A]
+				weight_limit: Limited(40 as u64),
 			},
 			DepositAsset {
 				assets: All.into(),
@@ -1285,13 +1283,13 @@ fn relay_to_para_withdraw_here_buy_deposit_works() {
 
 	ParaA::execute_with(|| {
 		assert_eq!(500, ParaTokens::free_balance(CurrencyId::A, &ALICE));
-		assert_eq!(490, ParaTokens::free_balance(CurrencyId::A, &BOB));
+		assert_eq!(460, ParaTokens::free_balance(CurrencyId::A, &BOB));
 	});
 }
 
 #[test]
 fn batch_all_relay_withdraw_para_transfer_works() {
-	env_logger::init();
+	// env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -1312,7 +1310,7 @@ fn batch_all_relay_withdraw_para_transfer_works() {
 			message: Box::new(VersionedXcm::from(Xcm(vec![
 				WithdrawAsset((Here, 500).into()),
 				BuyExecution {
-					// [holding: 500] - [fee: 30] = [holding: 470]
+					// [holding: 500] - [fee: 30] = [holding: 430]
 					fees: (Here, 500).into(),
 					weight_limit: Limited(30 as u64),
 				},
@@ -1320,7 +1318,7 @@ fn batch_all_relay_withdraw_para_transfer_works() {
 					assets: All.into(),
 					max_assets: 1,
 					beneficiary: {
-						// 490 on the holding all deposit to Alice(sender) on relaychain
+						// 470 on the holding all deposit to Alice(sender) on relaychain
 						(0, alice.clone()).into()
 					},
 				},
@@ -1334,15 +1332,15 @@ fn batch_all_relay_withdraw_para_transfer_works() {
 				// withdraw 500 A to holding ==> left 500 A -> Alice on parachain
 				WithdrawAsset(((Parent, X2(Parachain(1), GeneralKey("A".as_bytes().to_vec()))), 500).into()),
 				BuyExecution {
-					// [holding: 500 A] - [fee: 10] = [holding: 490 A]
+					// [holding: 500 A] - [fee: 40] = [holding: 460 A]
 					fees: ((Parent, X2(Parachain(1), GeneralKey("A".as_bytes().to_vec()))), 500).into(),
-					weight_limit: Limited(10 as u64),
+					weight_limit: Limited(40 as u64),
 				},
 				DepositAsset {
 					assets: All.into(),
 					max_assets: 1,
 					beneficiary: {
-						// 490 A on the holding all deposit to beneficiary on parachain
+						// 460 A on the holding all deposit to beneficiary on parachain
 						(0, bob).into()
 					},
 				},
@@ -1358,7 +1356,7 @@ fn batch_all_relay_withdraw_para_transfer_works() {
 
 	ParaA::execute_with(|| {
 		assert_eq!(500, ParaTokens::free_balance(CurrencyId::A, &ALICE));
-		assert_eq!(490, ParaTokens::free_balance(CurrencyId::A, &BOB));
+		assert_eq!(460, ParaTokens::free_balance(CurrencyId::A, &BOB));
 	});
 }
 
