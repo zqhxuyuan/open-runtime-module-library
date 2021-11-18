@@ -18,7 +18,7 @@ use sp_std::{convert::TryFrom, marker::PhantomData, prelude::*};
 use xcm::latest::prelude::*;
 use xcm_executor::traits::{FilterAssetLocation, MatchesFungible, ShouldExecute};
 
-use orml_traits::location::Reserve;
+use orml_traits::location::{Parse, Reserve};
 
 pub use currency_adapter::MultiCurrencyAdapter;
 use frame_support::pallet_prelude::Get;
@@ -53,6 +53,26 @@ impl FilterAssetLocation for MultiNativeAsset {
 		if let Some(ref reserve) = asset.reserve() {
 			if reserve == origin {
 				return true;
+			}
+		}
+		false
+	}
+}
+
+pub struct ParentFilterAsset;
+impl FilterAssetLocation for ParentFilterAsset {
+	fn filter_asset_location(asset: &MultiAsset, origin: &MultiLocation) -> bool {
+		if let Concrete(location) = &asset.id {
+			// if asset's reserve is (Parent, Here)
+			if location.chain_part() == Some(MultiLocation::parent()) {
+				match origin {
+					// and origin location's parents = 1, and it's parenet account
+					MultiLocation {
+						parents: 1,
+						interior: X1(AccountId32 { .. }),
+					} => return true,
+					_ => {}
+				}
 			}
 		}
 		false
@@ -138,39 +158,41 @@ impl<T: Contains<MultiLocation>, Network: Get<NetworkId>> ShouldExecute
 		_weight_credit: &mut Weight,
 	) -> Result<(), ()> {
 		ensure!(T::contains(origin), ());
-		let mut iter = message.0.iter_mut();
-		let i = iter.next().ok_or(())?;
-		match i {
-			DescendOrigin(X1(Junction::AccountId32 {
-				network: NetworkId::Any,
-				..
-			})) => (),
-			DescendOrigin(X1(Junction::AccountId32 { network, .. })) if network == &Network::get() => (),
-			_ => return Err(()),
-		}
-		let i = iter.next().ok_or(())?;
-		match i {
-			WithdrawAsset(..) => (),
-			_ => return Err(()),
-		}
-		let i = iter.next().ok_or(())?;
-		match i {
-			BuyExecution {
-				weight_limit: Limited(ref mut weight),
-				..
-			} if *weight >= max_weight => {
-				*weight = max_weight;
-				()
-			}
-			_ => return Err(()),
-		}
-		let i = iter.next().ok_or(())?;
-		match i {
-			Transact {
-				origin_type: OriginKind::SovereignAccount,
-				..
-			} => Ok(()),
-			_ => Err(()),
-		}
+		Ok(())
+		// let mut iter = message.0.iter_mut();
+		// let i = iter.next().ok_or(())?;
+		// match i {
+		// 	DescendOrigin(X1(Junction::AccountId32 {
+		// 		network: NetworkId::Any,
+		// 		..
+		// 	})) => (),
+		// 	DescendOrigin(X1(Junction::AccountId32 { network, .. })) if network
+		// == &Network::get() => (), 	_ => return Err(()),
+		// }
+		// let i = iter.next().ok_or(())?;
+		// match i {
+		// 	WithdrawAsset(..) | ReserveAssetDeposited(..) => (),
+		// 	_ => return Err(()),
+		// }
+		// let i = iter.next().ok_or(())?;
+		// match i {
+		// 	BuyExecution {
+		// 		weight_limit: Limited(ref mut weight),
+		// 		..
+		// 	} if *weight >= max_weight => {
+		// 		*weight = max_weight;
+		// 		()
+		// 	}
+		// 	_ => return Err(()),
+		// }
+		// let i = iter.next().ok_or(())?;
+		// match i {
+		// 	Transact {
+		// 		origin_type: OriginKind::SovereignAccount,
+		// 		..
+		// 	} => Ok(()),
+		// 	WithdrawAsset(..) => Ok(()),
+		// 	_ => Err(()),
+		// }
 	}
 }

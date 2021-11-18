@@ -17,6 +17,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
+pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
 
 cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.12", default-features = false }
 
@@ -62,6 +63,7 @@ std = [
 	"sp-io/std",
 	"frame-support/std",
 	"frame-system/std",
+	"pallet-utility/std",
 	"cumulus-primitives-core/std",
 	"xcm/std",
 	"xcm-executor/std",

@@ -154,6 +154,8 @@ pub type ParaXTokens = orml_xtokens::Pallet<para::Runtime>;
 pub type RelayChainPalletXcm = pallet_xcm::Pallet<relay::Runtime>;
 pub type ParachainPalletXcm = pallet_xcm::Pallet<para::Runtime>;
 
+pub type RelayChainUtility = pallet_utility::Pallet<relay::Runtime>;
+
 pub fn para_ext(para_id: u32) -> TestExternalities {
 	use para::{Runtime, System};
 

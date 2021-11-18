@@ -20,6 +20,10 @@ impl Parse for MultiLocation {
 			(1, Some(Parachain(id))) => Some(MultiLocation::new(1, X1(Parachain(*id)))),
 			// parent
 			(1, _) => Some(MultiLocation::parent()),
+			// (1, Some(AccountId32 {
+			// 			 network, id
+			// 		 })) => Some(MultiLocation::new(1,
+			// 										X1(AccountId32 {network: *network, id: *id}))),
 			// children parachain
 			(0, Some(Parachain(id))) => Some(MultiLocation::new(0, X1(Parachain(*id)))),
 			_ => None,

@@ -3,7 +3,7 @@
 use super::para::AccountIdToMultiLocation;
 use super::*;
 use orml_traits::MultiCurrency;
-use xcm_builder::IsConcrete;
+use xcm_builder::{IsConcrete, LocationInverter};
 use xcm_executor::traits::{MatchesFungible, WeightTrader};
 use xcm_simulator::TestExt;
 
@@ -65,6 +65,27 @@ fn test_asset_matches_fungible() {
 	let asset: MultiAsset = (Parent, 100u128).into();
 	let assets: u128 = IsConcrete::<RelayLocation>::matches_fungible(&asset.clone()).unwrap_or_default();
 	assert_eq!(assets, 100);
+
+	let reserve_location = asset.reserve().unwrap();
+	assert_eq!(reserve_location.contains_parents_only(1), true);
+	assert_eq!(reserve_location, (Parent, Here).into());
+
+	use frame_support::parameter_types;
+	parameter_types! {
+		pub Ancestry: MultiLocation = X1(Parachain(1)).into();
+	}
+	let dest: MultiLocation = Parachain(2).into();
+	let inv_dest = LocationInverter::<Ancestry>::invert_location(&dest).unwrap();
+	assert_eq!(inv_dest, (Parent, Here).into());
+
+	let mut asset: MultiAsset = (Here, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((Parent, Here), 100).into());
+	assert_eq!(asset, ((1, Here), 100).into());
+
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((2, Here), 100).into());
 }
 
 #[test]

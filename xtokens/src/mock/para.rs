@@ -28,7 +28,7 @@ use xcm_executor::{traits::WeightTrader, Assets, Config, XcmExecutor};
 use orml_traits::parameter_type_with_key;
 use orml_xcm_support::{
 	AllowEquivalentParentAccountsFrom, IsNativeConcrete, IsParent, MultiCurrencyAdapter, MultiNativeAsset,
-	RelaychainAccountId32Aliases,
+	ParentFilterAsset, RelaychainAccountId32Aliases,
 };
 
 pub type AccountId = AccountId32;
@@ -181,6 +181,7 @@ impl WeightTrader for AllTokensAreCreatedEqualToWeight {
 		}
 
 		let unused = payment.checked_sub(required).map_err(|_| XcmError::TooExpensive)?;
+		println!("unused asset:{:?}", unused);
 		Ok(unused)
 	}
 
@@ -199,14 +200,14 @@ impl Config for XcmConfig {
 	type XcmSender = XcmRouter;
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToCallOrigin;
-	type IsReserve = MultiNativeAsset;
+	type IsReserve = (MultiNativeAsset, ParentFilterAsset);
 	type IsTeleporter = ();
 	type LocationInverter = LocationInverter<Ancestry>;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type Trader = AllTokensAreCreatedEqualToWeight;
 	type ResponseHandler = ();
-	type AssetTrap = ();
+	type AssetTrap = PolkadotXcm;
 	type AssetClaims = ();
 	type SubscriptionService = PolkadotXcm;
 }
