@@ -106,7 +106,7 @@ fn test_asset_matches_fungible() {
 	asset.reanchor(&inv_dest);
 	assert_eq!(asset, ((1, Here), 100).into());
 
-	// (Parent, 100).reanchor((1, Parachain(1))) results ((1, Here), 100)
+	// (Parent, 100).reanchor((2, Parachain(1))) results ((2, Here), 100)
 	let inv_dest = (2, X1(Parachain(1))).into();
 	let mut asset: MultiAsset = (Parent, 100u128).into();
 	asset.reanchor(&inv_dest);
@@ -120,6 +120,13 @@ fn test_asset_matches_fungible() {
 	let mut asset: MultiAsset = ((2, X1(PalletInstance(3))), 100).into();
 	asset.reanchor(&inv_dest);
 	assert_eq!(asset, ((1, X1(PalletInstance(3))), 100).into());
+
+	// (Parent, 100).reanchor((0, Here)) results ((1, Here), 100)
+	let inv_dest = (0, Here).into();
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, Here), 100).into());
+
 }
 
 #[test]
