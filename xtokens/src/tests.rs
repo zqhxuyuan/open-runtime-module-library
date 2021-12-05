@@ -52,6 +52,41 @@ fn send_relay_chain_asset_to_relay_chain() {
 }
 
 #[test]
+fn send_relay_chain_asset_to_relay_chain_diff_weights() {
+	env_logger::init();
+	TestNet::reset();
+
+	Relay::execute_with(|| {
+		let _ = RelayBalances::deposit_creating(&para_a_account(), 1_000);
+	});
+
+	ParaA::execute_with(|| {
+		assert_ok!(ParaXTokens::transfer(
+			Some(ALICE).into(),
+			CurrencyId::R,
+			500,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X1(Junction::AccountId32 {
+						network: NetworkId::Any,
+						id: BOB.into(),
+					})
+				)
+				.into()
+			),
+			400, // try to change to 39 | 100 | 400. -> 39:error, other:ok.
+		));
+		assert_eq!(ParaTokens::free_balance(CurrencyId::R, &ALICE), 500);
+	});
+
+	Relay::execute_with(|| {
+		assert_eq!(RelayBalances::free_balance(&para_a_account()), 500);
+		assert_eq!(RelayBalances::free_balance(&BOB), 460);
+	});
+}
+
+#[test]
 fn cannot_lost_fund_on_send_failed() {
 	TestNet::reset();
 
@@ -1064,7 +1099,7 @@ fn relay_transact_to_para_transfer_use_normal_account_deposit_RA_works() {
 // (Para) WithdrawAsset + Transact(remark)
 #[test]
 fn relay_transact_to_para_remark_use_normal_account_R_works() {
-	// env_logger::init();
+	env_logger::init();
 	use para::{Call, Runtime};
 
 	ParaA::execute_with(|| {
@@ -1088,7 +1123,10 @@ fn relay_transact_to_para_remark_use_normal_account_R_works() {
 			WithdrawAsset(assets.clone().into()),
 			BuyExecution {
 				fees: assets,
-				weight_limit: Limited(6050 as u64),
+				// weight_limit: Limited(6030 as u64), // not works
+				// weight_limit: Limited(6040 as u64), // works
+				weight_limit: Limited(16050 as u64), // works
+				// weight_limit: Limited(6050 as u64), // works
 			},
 			Transact {
 				origin_type: OriginKind::SovereignAccount,
