@@ -74,18 +74,59 @@ fn test_asset_matches_fungible() {
 	parameter_types! {
 		pub Ancestry: MultiLocation = X1(Parachain(1)).into();
 	}
+	// Parachain(1) invert Parachain(2) results: (1, Here) = Parent
 	let dest: MultiLocation = Parachain(2).into();
 	let inv_dest = LocationInverter::<Ancestry>::invert_location(&dest).unwrap();
 	assert_eq!(inv_dest, (Parent, Here).into());
 
+	// (Here, 100).reanchor(Parent) results ((Parent, Here), 100)
 	let mut asset: MultiAsset = (Here, 100u128).into();
 	asset.reanchor(&inv_dest);
 	assert_eq!(asset, ((Parent, Here), 100).into());
 	assert_eq!(asset, ((1, Here), 100).into());
 
+	// (Parent, 100).reanchor(Parent) results ((2, Here), 100)
 	let mut asset: MultiAsset = (Parent, 100u128).into();
 	asset.reanchor(&inv_dest);
 	assert_eq!(asset, ((2, Here), 100).into());
+
+	// Parachain(1) invert Parent results: (0, Parachain(1))
+	let dest: MultiLocation = Parent.into();
+	let inv_dest = LocationInverter::<Ancestry>::invert_location(&dest).unwrap();
+	assert_eq!(inv_dest, (0, X1(Parachain(1))).into());
+
+	// (Parent, 100).reanchor((0, Parachain(1))) results ((0, Here), 100)
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((0, Here), 100).into());
+
+	// (Parent, 100).reanchor((1, Parachain(1))) results ((1, Here), 100)
+	let inv_dest = (1, X1(Parachain(1))).into();
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, Here), 100).into());
+
+	// (Parent, 100).reanchor((2, Parachain(1))) results ((2, Here), 100)
+	let inv_dest = (2, X1(Parachain(1))).into();
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((2, Here), 100).into());
+
+	// let mut m = MultiLocation::new(2, X1(PalletInstance(3)));
+	// assert_eq!(m.prepend_with(MultiLocation::new(1, X2(Parachain(21), OnlyChild))), Ok(()));
+	// assert_eq!(m, MultiLocation::new(1, X1(PalletInstance(3))));
+	// ((2, X1(PalletInstance(3))), 100).reanchor(1, X2(Parachain(1), OnlyChild)) =
+	let inv_dest = (1, X2(Parachain(1), OnlyChild)).into();
+	let mut asset: MultiAsset = ((2, X1(PalletInstance(3))), 100).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, X1(PalletInstance(3))), 100).into());
+
+	// (Parent, 100).reanchor((0, Here)) results ((1, Here), 100)
+	let inv_dest = (0, Here).into();
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, Here), 100).into());
+
 }
 
 #[test]
