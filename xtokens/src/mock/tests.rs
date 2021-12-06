@@ -10,6 +10,7 @@ use xcm_simulator::TestExt;
 use crate::mock::para::RelayLocation;
 use crate::mock::relay::KsmLocation;
 use xcm_executor::Assets;
+use frame_support::parameter_types;
 
 #[test]
 fn test_init_balance() {
@@ -37,6 +38,187 @@ fn test_init_balance() {
 		assert_eq!(ParaTokens::free_balance(CurrencyId::R, &ALICE), INITIAL_BALANCE);
 		assert_eq!(ParaTokens::free_balance(CurrencyId::R, &BOB), 0);
 	});
+}
+
+// this is user case for relaychain transfer to parachain
+#[test]
+fn test_relay_assets_invert_reanchor() {
+	// relay.rs runtime config: Ancestry = Here
+	parameter_types! {
+		pub Ancestry: MultiLocation = Here.into();
+	}
+
+	// in the case of relaychain reserve transfer assets to parachain, the destination is parachain
+	let dest: MultiLocation = Parachain(2).into();
+
+	// Here invert Parachain
+	let inv_dest = LocationInverter::<Ancestry>::invert_location(&dest).unwrap();
+
+	// the invert destination = Parent
+	assert_eq!(inv_dest, (Parent, Here).into());
+	assert_eq!(inv_dest, (1, Here).into());
+	assert_eq!(inv_dest, Parent.into());
+
+	// in the reserve transfer assets case, the relaychain will reanchor the original assets
+	// and use the new reanchored assets as the argument of ReserveAssetDeposited instruction.
+	// you can check the TransferReserveAsset instruction processing inside xcm-executor.
+	let mut asset: MultiAsset = (Here, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, (Parent, 100).into());
+}
+
+// this is user case for parachain transfer to relaychain
+#[test]
+fn test_parachain_invert_parent() {
+	parameter_types! {
+		pub Ancestry: MultiLocation = X1(Parachain(1)).into();
+	}
+
+	let dest: MultiLocation = Parent.into();
+
+	// Parachain(1) invert Parent results: (0, Parachain(1))
+	let inv_dest = LocationInverter::<Ancestry>::invert_location(&dest).unwrap();
+	assert_eq!(inv_dest, (0, X1(Parachain(1))).into());
+
+	// (Parent, 100).reanchor((0, Parachain(1))) results ((0, Here), 100)
+	// A -> R -> R
+	// parachain send xcm to dest: Parent(which is relaychain), and the assets is relaychain token
+	// so in the relaychain, its assets is (Here, 100), because it's already in relaychain side.
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((0, Here), 100).into());
+
+	// (Here, 100).reanchor((0, Parachain(1))) results ((0, Parachain(1)), 100)
+	// A -> A -> R, although this is meaningless, because R can never recognize token A
+	let mut asset: MultiAsset = (Here, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((0, Parachain(1)), 100).into());
+
+	// (Parent, 100).reanchor((0, Here)) results ((1, Here), 100)
+	// the inv_dest is manual set, not invoked by invert_location
+	// (Parent, 100) means relaychain assets, but the inv_dest=(0, Here) means current location
+	// the resule of reanchor of assets will not changed. that's assets.reanchor((0, Here)) = assets.
+	let inv_dest = (0, Here).into();
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, Here), 100).into());
+	assert_eq!(asset, (Parent, 100).into());
+}
+
+#[test]
+fn test_parachain_invert_sibling_unexpected() {
+	// para.rs runtime config
+	parameter_types! {
+		pub Ancestry: MultiLocation = X1(Parachain(1)).into();
+	}
+
+	// if the original origin is in parachain, and the destination is an sibling parachain
+	// then we could imaging this is an xcmp message which parachain send to parachain.
+	// but here we may use the wrong destination expression. we should use ../Parachain(2) in other test.
+	// because in the perspective side of origin parachain, the way to other parachain must passing parent.
+	let dest: MultiLocation = X1(Parachain(2)).into();
+
+	// Parachain(1) invert Parachain(2) results: (1, Here) = Parent
+	// this result is un-expected. I thould it will be ../Para(1)
+	let inv_dest = LocationInverter::<Ancestry>::invert_location(&dest).unwrap();
+	assert_eq!(inv_dest, (Parent, Here).into());
+	assert_eq!(inv_dest, Parent.into());
+
+	// (Here, 100).reanchor(Parent) results ((Parent, Here), 100)
+	let mut asset: MultiAsset = (Here, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((Parent, Here), 100).into());
+	assert_eq!(asset, ((1, Here), 100).into());
+	assert_eq!(asset, (Parent, 100).into());
+
+	// (Parent, 100).reanchor(Parent) results ((2, Here), 100)
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((2, Here), 100).into());
+
+	// (Parachain(1), 100).reanchor(Parent) results ((1, Parachain(1)), 100)
+	let mut asset: MultiAsset = ((0, Parachain(1)), 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, Parachain(1)), 100).into());
+
+	let mut asset: MultiAsset = (Parachain(1), 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, Parachain(1)), 100).into());
+}
+
+#[test]
+fn test_parachain_invert_sibling2() {
+	// para.rs runtime config
+	parameter_types! {
+		pub Ancestry: MultiLocation = X1(Parachain(1)).into();
+	}
+
+	// if the original origin is in parachain, and the destination is an sibling parachain
+	// then we could imaging this is an xcmp message which parachain send to parachain.
+	let dest: MultiLocation = (Parent, Parachain(2)).into();
+
+	// Parachain(1) invert (Parent,Parachain(2)) = (Parent, Parachain(1))
+	let inv_dest = LocationInverter::<Ancestry>::invert_location(&dest).unwrap();
+	assert_eq!(inv_dest, (1, Parachain(1)).into());
+
+	// (Here, 100).reanchor((Parent,Parachain(1))) results ((Parent, Parachain(1)), 100)
+	// this is for the case of A -> [A] -> B
+	// (Here,100) means token A, then in para(2), (1, Para(1)) can express the meaning of token A asset
+	let mut asset: MultiAsset = (Here, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((Parent, Parachain(1)), 100).into());
+	assert_eq!(asset, ((1, Parachain(1)), 100).into());
+
+	// (Parent, 100).reanchor((Parent,Parachain(1)))
+	// this is for the case of A -> R -> B. i.e. Karura transfer KSM to Bifrost.
+	// so here (Parent, 100) means 100 KSM in karura, and in bifrost,
+	// it also use (Parent, 100) to express 100 KSM.
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, (Parent, 100).into());
+
+	// (Parachain(1), 100).reanchor((Parent,Parachain(1)))
+	// it's meaningless, but here we use here just for the testcase
+	let mut asset: MultiAsset = ((0, Parachain(1)), 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, X2(Parachain(1), Parachain(1))), 100).into());
+
+	// (0, Parachain(1)) is like Parachain(1), so it's also meaningless
+	let mut asset: MultiAsset = (Parachain(1), 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, X2(Parachain(1), Parachain(1))), 100).into());
+
+	// (GeneralIndex(42), 100).reanchor((Parent,Parachain(1)))
+	// the original is GeneralIndex belonging to origin parachain(1)
+	// then in the Para(2) side, it needs first get into Para(1), then get into GeneralIndex
+	let mut asset: MultiAsset = ((0, GeneralIndex(42)), 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, X2(Parachain(1), GeneralIndex(42))), 100).into());
+}
+
+#[test]
+fn test_invert_reanchor_others() {
+	// (Parent, 100).reanchor((1, Parachain(1))) results ((1, Here), 100)
+	let inv_dest = (1, X1(Parachain(1))).into();
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, Here), 100).into());
+	assert_eq!(asset, (Parent, 100).into());
+
+	// (Parent, 100).reanchor((2, Parachain(1))) results ((2, Here), 100)
+	let inv_dest = (2, X1(Parachain(1))).into();
+	let mut asset: MultiAsset = (Parent, 100u128).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((2, Here), 100).into());
+
+	// let mut m = MultiLocation::new(2, X1(PalletInstance(3)));
+	// assert_eq!(m.prepend_with(MultiLocation::new(1, X2(Parachain(21), OnlyChild))), Ok(()));
+	// assert_eq!(m, MultiLocation::new(1, X1(PalletInstance(3))));
+	// ((2, X1(PalletInstance(3))), 100).reanchor(1, X2(Parachain(1), OnlyChild)) =
+	let inv_dest = (1, X2(Parachain(1), OnlyChild)).into();
+	let mut asset: MultiAsset = ((2, X1(PalletInstance(3))), 100).into();
+	asset.reanchor(&inv_dest);
+	assert_eq!(asset, ((1, X1(PalletInstance(3))), 100).into());
 }
 
 #[test]
@@ -69,64 +251,6 @@ fn test_asset_matches_fungible() {
 	let reserve_location = asset.reserve().unwrap();
 	assert_eq!(reserve_location.contains_parents_only(1), true);
 	assert_eq!(reserve_location, (Parent, Here).into());
-
-	use frame_support::parameter_types;
-	parameter_types! {
-		pub Ancestry: MultiLocation = X1(Parachain(1)).into();
-	}
-	// Parachain(1) invert Parachain(2) results: (1, Here) = Parent
-	let dest: MultiLocation = Parachain(2).into();
-	let inv_dest = LocationInverter::<Ancestry>::invert_location(&dest).unwrap();
-	assert_eq!(inv_dest, (Parent, Here).into());
-
-	// (Here, 100).reanchor(Parent) results ((Parent, Here), 100)
-	let mut asset: MultiAsset = (Here, 100u128).into();
-	asset.reanchor(&inv_dest);
-	assert_eq!(asset, ((Parent, Here), 100).into());
-	assert_eq!(asset, ((1, Here), 100).into());
-
-	// (Parent, 100).reanchor(Parent) results ((2, Here), 100)
-	let mut asset: MultiAsset = (Parent, 100u128).into();
-	asset.reanchor(&inv_dest);
-	assert_eq!(asset, ((2, Here), 100).into());
-
-	// Parachain(1) invert Parent results: (0, Parachain(1))
-	let dest: MultiLocation = Parent.into();
-	let inv_dest = LocationInverter::<Ancestry>::invert_location(&dest).unwrap();
-	assert_eq!(inv_dest, (0, X1(Parachain(1))).into());
-
-	// (Parent, 100).reanchor((0, Parachain(1))) results ((0, Here), 100)
-	let mut asset: MultiAsset = (Parent, 100u128).into();
-	asset.reanchor(&inv_dest);
-	assert_eq!(asset, ((0, Here), 100).into());
-
-	// (Parent, 100).reanchor((1, Parachain(1))) results ((1, Here), 100)
-	let inv_dest = (1, X1(Parachain(1))).into();
-	let mut asset: MultiAsset = (Parent, 100u128).into();
-	asset.reanchor(&inv_dest);
-	assert_eq!(asset, ((1, Here), 100).into());
-
-	// (Parent, 100).reanchor((2, Parachain(1))) results ((2, Here), 100)
-	let inv_dest = (2, X1(Parachain(1))).into();
-	let mut asset: MultiAsset = (Parent, 100u128).into();
-	asset.reanchor(&inv_dest);
-	assert_eq!(asset, ((2, Here), 100).into());
-
-	// let mut m = MultiLocation::new(2, X1(PalletInstance(3)));
-	// assert_eq!(m.prepend_with(MultiLocation::new(1, X2(Parachain(21), OnlyChild))), Ok(()));
-	// assert_eq!(m, MultiLocation::new(1, X1(PalletInstance(3))));
-	// ((2, X1(PalletInstance(3))), 100).reanchor(1, X2(Parachain(1), OnlyChild)) =
-	let inv_dest = (1, X2(Parachain(1), OnlyChild)).into();
-	let mut asset: MultiAsset = ((2, X1(PalletInstance(3))), 100).into();
-	asset.reanchor(&inv_dest);
-	assert_eq!(asset, ((1, X1(PalletInstance(3))), 100).into());
-
-	// (Parent, 100).reanchor((0, Here)) results ((1, Here), 100)
-	let inv_dest = (0, Here).into();
-	let mut asset: MultiAsset = (Parent, 100u128).into();
-	asset.reanchor(&inv_dest);
-	assert_eq!(asset, ((1, Here), 100).into());
-
 }
 
 #[test]
