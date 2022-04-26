@@ -16,18 +16,26 @@ use xcm::latest::prelude::*;
 use xcm_builder::TakeRevenue;
 use xcm_executor::{traits::WeightTrader, Assets};
 
-pub trait AssetIdAssigner<AssetId, AssetMetadata> {
-	fn assign_id(asset_metadata: &AssetMetadata, last_id: Option<AssetId>) -> AssetId;
+pub trait AssetIdAssigner<AssetId, CustomMetadata> {
+	fn assign_id(asset_metadata: &CustomMetadata, last_id: Option<AssetId>) -> AssetId;
 }
 
 pub struct SequentialId<AssetId: AtLeast32BitUnsigned>(PhantomData<AssetId>);
-impl<AssetId: AtLeast32BitUnsigned, AssetMetadata> AssetIdAssigner<AssetId, AssetMetadata> for SequentialId<AssetId> {
-	fn assign_id(_asset_metadata: &AssetMetadata, last_id: Option<AssetId>) -> AssetId {
+impl<AssetId: AtLeast32BitUnsigned, CustomMetadata> AssetIdAssigner<AssetId, CustomMetadata> for SequentialId<AssetId> {
+	fn assign_id(_asset_metadata: &CustomMetadata, last_id: Option<AssetId>) -> AssetId {
 		match last_id {
 			None => AssetId::zero(),
 			Some(x) => x.saturating_add(AssetId::one()),
 		}
 	}
+}
+
+#[derive(scale_info::TypeInfo, Encode, Decode, Clone, Eq, PartialEq, Debug)]
+pub struct AssetMetadata<T: Parameter + Member + TypeInfo + Into<MultiLocation>> {
+	pub decimals: u32,
+	pub name: Vec<u8>,
+	pub symbol: Vec<u8>,
+	pub additional: T,
 }
 
 #[frame_support::pallet]
@@ -38,13 +46,13 @@ pub mod module {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		type AssetMetadata: Parameter + Member + TypeInfo + Into<MultiLocation>;
+		type CustomMetadata: Parameter + Member + TypeInfo + Into<MultiLocation>;
 
 		type AssetId: Parameter + Member + TypeInfo;
 
 		type AuthorityOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 
-		type AssignAsset: AssetIdAssigner<Self::AssetId, Self::AssetMetadata>;
+		type AssignAsset: AssetIdAssigner<Self::AssetId, Self::CustomMetadata>;
 		// /// Weight information for extrinsics in this module.
 		// type WeightInfo: WeightInfo;
 	}
@@ -57,14 +65,15 @@ pub mod module {
 	pub enum Event<T: Config> {
 		RegisteredAsset {
 			asset_id: T::AssetId,
-			metadata: T::AssetMetadata,
+			metadata: AssetMetadata<T::CustomMetadata>,
 		},
 	}
 
 	/// The total issuance of a token type.
 	#[pallet::storage]
 	#[pallet::getter(fn get_metadata)]
-	pub type Metadata<T: Config> = StorageMap<_, Twox64Concat, T::AssetId, T::AssetMetadata, OptionQuery>;
+	pub type Metadata<T: Config> =
+		StorageMap<_, Twox64Concat, T::AssetId, AssetMetadata<T::CustomMetadata>, OptionQuery>;
 
 	/// The total issuance of a token type.
 	#[pallet::storage]
@@ -104,15 +113,15 @@ pub mod module {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(0)]
-		pub fn register_asset(origin: OriginFor<T>, metadata: T::AssetMetadata) -> DispatchResult {
+		pub fn register_asset(origin: OriginFor<T>, metadata: AssetMetadata<T::CustomMetadata>) -> DispatchResult {
 			let _ = T::AuthorityOrigin::ensure_origin(origin)?;
 
-			let location = metadata.clone().into();
+			let location = metadata.additional.clone().into();
 
 			// if the location is already registered, use the existing id. Otherwise, get a
 			// new one
 			let asset_id = MultiLocationLookup::<T>::get(&location)
-				.unwrap_or_else(|| T::AssignAsset::assign_id(&metadata, Self::last_asset_id()));
+				.unwrap_or_else(|| T::AssignAsset::assign_id(&metadata.additional, Self::last_asset_id()));
 
 			Metadata::<T>::insert(&asset_id, &metadata);
 			MultiLocationLookup::<T>::insert(location, &asset_id);
@@ -125,7 +134,7 @@ pub mod module {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn fetch_metadata_by_location(location: &MultiLocation) -> Option<T::AssetMetadata> {
+	pub fn fetch_metadata_by_location(location: &MultiLocation) -> Option<AssetMetadata<T::CustomMetadata>> {
 		let asset_id = MultiLocationLookup::<T>::get(location)?;
 		Metadata::<T>::get(asset_id)
 	}
