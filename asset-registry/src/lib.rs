@@ -7,27 +7,14 @@ use frame_system::pallet_prelude::*;
 pub use module::*;
 use orml_traits::asset_registry::{FixedConversionRateProvider, WeightToFeeConverter};
 use scale_info::TypeInfo;
-use sp_runtime::{
-	traits::{AtLeast32BitUnsigned, Member},
-	DispatchResult,
-};
+use sp_runtime::{traits::Member, DispatchResult};
 use sp_std::prelude::*;
 use xcm::latest::prelude::*;
 use xcm_builder::TakeRevenue;
 use xcm_executor::{traits::WeightTrader, Assets};
 
-pub trait AssetIdAssigner<AssetId, CustomMetadata> {
-	fn assign_id(asset_metadata: &CustomMetadata, last_id: Option<AssetId>) -> AssetId;
-}
-
-pub struct SequentialId<AssetId: AtLeast32BitUnsigned>(PhantomData<AssetId>);
-impl<AssetId: AtLeast32BitUnsigned, CustomMetadata> AssetIdAssigner<AssetId, CustomMetadata> for SequentialId<AssetId> {
-	fn assign_id(_asset_metadata: &CustomMetadata, last_id: Option<AssetId>) -> AssetId {
-		match last_id {
-			None => AssetId::zero(),
-			Some(x) => x.saturating_add(AssetId::one()),
-		}
-	}
+pub trait AssetProcessor<AssetId, Metadata> {
+	fn process_asset(id: Option<AssetId>, asset_metadata: &Metadata) -> Result<(AssetId, Metadata), DispatchError>;
 }
 
 #[derive(scale_info::TypeInfo, Encode, Decode, Clone, Eq, PartialEq, Debug)]
@@ -52,7 +39,7 @@ pub mod module {
 
 		type AuthorityOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 
-		type AssignAsset: AssetIdAssigner<Self::AssetId, Self::CustomMetadata>;
+		type ProcessAsset: AssetProcessor<Self::AssetId, AssetMetadata<Self::CustomMetadata>>;
 		// /// Weight information for extrinsics in this module.
 		// type WeightInfo: WeightInfo;
 	}
@@ -123,15 +110,18 @@ pub mod module {
 			let location = metadata.additional.clone().into();
 
 			// if assetid is explicitly passed, use that. Otherwise, if the location is
-			// already registered, use the existing id. Otherwise, get new one
-			let asset_id = asset_id
-				.or_else(|| MultiLocationLookup::<T>::get(&location))
-				.unwrap_or_else(|| T::AssignAsset::assign_id(&metadata.additional, Self::last_asset_id()));
+			// already registered, use the existing id
+			let unprocessed_asset_id = asset_id.or_else(|| MultiLocationLookup::<T>::get(&location));
 
-			Metadata::<T>::insert(&asset_id, &metadata);
-			MultiLocationLookup::<T>::insert(location, &asset_id);
+			let (processed_asset_id, metadata) = T::ProcessAsset::process_asset(unprocessed_asset_id, &metadata)?;
 
-			Self::deposit_event(Event::<T>::RegisteredAsset { asset_id, metadata });
+			Metadata::<T>::insert(&processed_asset_id, &metadata);
+			MultiLocationLookup::<T>::insert(location, &processed_asset_id);
+
+			Self::deposit_event(Event::<T>::RegisteredAsset {
+				asset_id: processed_asset_id,
+				metadata,
+			});
 
 			Ok(())
 		}
