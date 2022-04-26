@@ -18,10 +18,11 @@ pub trait AssetProcessor<AssetId, Metadata> {
 }
 
 #[derive(scale_info::TypeInfo, Encode, Decode, Clone, Eq, PartialEq, Debug)]
-pub struct AssetMetadata<T: Parameter + Member + TypeInfo + Into<MultiLocation>> {
+pub struct AssetMetadata<T: Parameter + Member + TypeInfo> {
 	pub decimals: u32,
 	pub name: Vec<u8>,
 	pub symbol: Vec<u8>,
+	pub location: MultiLocation,
 	pub additional: T,
 }
 
@@ -33,7 +34,7 @@ pub mod module {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		type CustomMetadata: Parameter + Member + TypeInfo + Into<MultiLocation>;
+		type CustomMetadata: Parameter + Member + TypeInfo;
 
 		type AssetId: Parameter + Member + TypeInfo;
 
@@ -107,16 +108,14 @@ pub mod module {
 		) -> DispatchResult {
 			let _ = T::AuthorityOrigin::ensure_origin(origin)?;
 
-			let location = metadata.additional.clone().into();
-
 			// if assetid is explicitly passed, use that. Otherwise, if the location is
 			// already registered, use the existing id
-			let unprocessed_asset_id = asset_id.or_else(|| MultiLocationLookup::<T>::get(&location));
+			let unprocessed_asset_id = asset_id.or_else(|| MultiLocationLookup::<T>::get(&metadata.location));
 
 			let (processed_asset_id, metadata) = T::ProcessAsset::process_asset(unprocessed_asset_id, &metadata)?;
 
 			Metadata::<T>::insert(&processed_asset_id, &metadata);
-			MultiLocationLookup::<T>::insert(location, &processed_asset_id);
+			MultiLocationLookup::<T>::insert(&metadata.location, &processed_asset_id);
 
 			Self::deposit_event(Event::<T>::RegisteredAsset {
 				asset_id: processed_asset_id,
