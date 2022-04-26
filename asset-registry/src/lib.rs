@@ -113,14 +113,19 @@ pub mod module {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(0)]
-		pub fn register_asset(origin: OriginFor<T>, metadata: AssetMetadata<T::CustomMetadata>) -> DispatchResult {
+		pub fn register_asset(
+			origin: OriginFor<T>,
+			metadata: AssetMetadata<T::CustomMetadata>,
+			asset_id: Option<T::AssetId>,
+		) -> DispatchResult {
 			let _ = T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let location = metadata.additional.clone().into();
 
-			// if the location is already registered, use the existing id. Otherwise, get a
-			// new one
-			let asset_id = MultiLocationLookup::<T>::get(&location)
+			// if assetid is explicitly passed, use that. Otherwise, if the location is
+			// already registered, use the existing id. Otherwise, get new one
+			let asset_id = asset_id
+				.or_else(|| MultiLocationLookup::<T>::get(&location))
 				.unwrap_or_else(|| T::AssignAsset::assign_id(&metadata.additional, Self::last_asset_id()));
 
 			Metadata::<T>::insert(&asset_id, &metadata);
