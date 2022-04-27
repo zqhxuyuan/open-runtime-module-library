@@ -12,7 +12,8 @@ use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_runtime::traits::Bounded;
 use sp_runtime::{traits::Member, DispatchResult};
 use sp_std::prelude::*;
-use xcm::latest::prelude::*;
+use xcm::v2::prelude::*;
+use xcm::VersionedMultiLocation;
 use xcm_builder::TakeRevenue;
 use xcm_executor::{traits::WeightTrader, Assets};
 
@@ -26,7 +27,7 @@ pub struct AssetMetadata<Balance, CustomMetadata: Parameter + Member + TypeInfo>
 	pub name: Vec<u8>,
 	pub symbol: Vec<u8>,
 	pub existential_deposit: Balance,
-	pub location: Option<MultiLocation>,
+	pub location: Option<VersionedMultiLocation>,
 	pub additional: CustomMetadata,
 }
 
@@ -62,6 +63,9 @@ pub mod module {
 	pub enum Error<T> {
 		/// Asset was not found
 		AssetNotFound,
+		/// The version of the `Versioned` value used is not able to be
+		/// interpreted.
+		BadVersion,
 	}
 
 	#[pallet::event]
@@ -73,7 +77,7 @@ pub mod module {
 		},
 		SetLocation {
 			asset_id: T::AssetId,
-			location: MultiLocation,
+			location: VersionedMultiLocation,
 		},
 	}
 
@@ -129,21 +133,27 @@ pub mod module {
 		) -> DispatchResult {
 			let _ = T::AuthorityOrigin::ensure_origin(origin)?;
 
+			let location: Option<MultiLocation> = metadata
+				.location
+				.clone()
+				.map(|location| location.try_into().map_err(|()| Error::<T>::BadVersion))
+				.transpose()?;
+
 			// if assetid is explicitly passed, use that. Otherwise, if the location is
 			// already registered, use the existing id
 			let unprocessed_asset_id = asset_id.or_else(|| {
-				metadata
-					.location
+				location
 					.as_ref()
 					.and_then(|location| MultiLocationLookup::<T>::get(location))
 			});
 
-			let (processed_asset_id, metadata) = T::ProcessAsset::process_asset(unprocessed_asset_id, &metadata)?;
+			let (processed_asset_id, metadata) =
+				T::ProcessAsset::process_asset(unprocessed_asset_id, &metadata.clone())?;
 
 			Metadata::<T>::insert(&processed_asset_id, &metadata);
 
 			// If it included a multilocation, add it to the lookup
-			if let Some(ref location) = metadata.location {
+			if let Some(ref location) = location {
 				MultiLocationLookup::<T>::insert(location, &processed_asset_id);
 			}
 
@@ -159,7 +169,7 @@ pub mod module {
 		pub fn set_asset_location(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
-			location: MultiLocation,
+			location: VersionedMultiLocation,
 		) -> DispatchResult {
 			let _ = T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -169,7 +179,9 @@ pub mod module {
 				Ok(())
 			})?;
 
-			MultiLocationLookup::<T>::insert(&location, &asset_id);
+			let unversioned_location: MultiLocation =
+				location.clone().try_into().map_err(|()| Error::<T>::BadVersion)?;
+			MultiLocationLookup::<T>::insert(unversioned_location, &asset_id);
 
 			Self::deposit_event(Event::<T>::SetLocation { asset_id, location });
 
