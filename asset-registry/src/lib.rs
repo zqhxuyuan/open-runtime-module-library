@@ -6,7 +6,10 @@ use frame_support::{log, pallet_prelude::*};
 use frame_system::pallet_prelude::*;
 pub use module::*;
 use orml_traits::asset_registry::{FixedConversionRateProvider, WeightToFeeConverter};
+use orml_traits::GetByKey;
 use scale_info::TypeInfo;
+use sp_runtime::traits::AtLeast32BitUnsigned;
+use sp_runtime::traits::Bounded;
 use sp_runtime::{traits::Member, DispatchResult};
 use sp_std::prelude::*;
 use xcm::latest::prelude::*;
@@ -18,12 +21,13 @@ pub trait AssetProcessor<AssetId, Metadata> {
 }
 
 #[derive(scale_info::TypeInfo, Encode, Decode, Clone, Eq, PartialEq, Debug)]
-pub struct AssetMetadata<T: Parameter + Member + TypeInfo> {
+pub struct AssetMetadata<Balance, CustomMetadata: Parameter + Member + TypeInfo> {
 	pub decimals: u32,
 	pub name: Vec<u8>,
 	pub symbol: Vec<u8>,
+	pub existential_deposit: Balance,
 	pub location: Option<MultiLocation>,
-	pub additional: T,
+	pub additional: CustomMetadata,
 }
 
 #[frame_support::pallet]
@@ -40,7 +44,16 @@ pub mod module {
 
 		type AuthorityOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 
-		type ProcessAsset: AssetProcessor<Self::AssetId, AssetMetadata<Self::CustomMetadata>>;
+		type ProcessAsset: AssetProcessor<Self::AssetId, AssetMetadata<Self::Balance, Self::CustomMetadata>>;
+
+		/// The balance type.
+		type Balance: Parameter
+			+ Member
+			+ AtLeast32BitUnsigned
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ Into<u128>;
 		// /// Weight information for extrinsics in this module.
 		// type WeightInfo: WeightInfo;
 	}
@@ -56,7 +69,7 @@ pub mod module {
 	pub enum Event<T: Config> {
 		RegisteredAsset {
 			asset_id: T::AssetId,
-			metadata: AssetMetadata<T::CustomMetadata>,
+			metadata: AssetMetadata<T::Balance, T::CustomMetadata>,
 		},
 		SetLocation {
 			asset_id: T::AssetId,
@@ -68,7 +81,7 @@ pub mod module {
 	#[pallet::storage]
 	#[pallet::getter(fn get_metadata)]
 	pub type Metadata<T: Config> =
-		StorageMap<_, Twox64Concat, T::AssetId, AssetMetadata<T::CustomMetadata>, OptionQuery>;
+		StorageMap<_, Twox64Concat, T::AssetId, AssetMetadata<T::Balance, T::CustomMetadata>, OptionQuery>;
 
 	/// The total issuance of a token type.
 	#[pallet::storage]
@@ -110,7 +123,7 @@ pub mod module {
 		#[pallet::weight(0)]
 		pub fn register_asset(
 			origin: OriginFor<T>,
-			metadata: AssetMetadata<T::CustomMetadata>,
+			metadata: AssetMetadata<T::Balance, T::CustomMetadata>,
 			asset_id: Option<T::AssetId>,
 		) -> DispatchResult {
 			let _ = T::AuthorityOrigin::ensure_origin(origin)?;
@@ -165,7 +178,9 @@ pub mod module {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn fetch_metadata_by_location(location: &MultiLocation) -> Option<AssetMetadata<T::CustomMetadata>> {
+	pub fn fetch_metadata_by_location(
+		location: &MultiLocation,
+	) -> Option<AssetMetadata<T::Balance, T::CustomMetadata>> {
 		let asset_id = MultiLocationLookup::<T>::get(location)?;
 		Metadata::<T>::get(asset_id)
 	}
@@ -270,6 +285,19 @@ impl<W: WeightToFeeConverter, R: TakeRevenue> Drop for AssetRegistryTrader<W, R>
 	fn drop(&mut self) {
 		if let Some(ref bought) = self.bought_weight {
 			R::take_revenue((AssetId::Concrete(bought.asset_location.clone()), bought.amount).into());
+		}
+	}
+}
+
+// Return Existential deposit of an asset. Implementing this trait allows it to
+// be used in the tokens::ExistentialDeposits config item
+impl<T: Config> GetByKey<T::AssetId, T::Balance> for Pallet<T> {
+	fn get(k: &T::AssetId) -> T::Balance {
+		if let Some(metadata) = Self::get_metadata(k) {
+			metadata.existential_deposit
+		} else {
+			// Asset does not exist - not supported
+			T::Balance::max_value()
 		}
 	}
 }
