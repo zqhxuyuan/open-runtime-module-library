@@ -85,6 +85,7 @@ pub mod module {
 
 	/// The total issuance of a token type.
 	#[pallet::storage]
+	#[pallet::getter(fn get_asset_id)]
 	pub type MultiLocationLookup<T: Config> = StorageMap<_, Twox64Concat, MultiLocation, T::AssetId, OptionQuery>;
 
 	#[pallet::storage]
