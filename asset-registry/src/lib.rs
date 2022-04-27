@@ -248,7 +248,12 @@ impl<W: WeightToFeeConverter, R: TakeRevenue> WeightTrader for AssetRegistryTrad
 
 				if let Some(amount) = W::convert_weight_to_fee(location, new_weight) {
 					let fee_increase = amount.saturating_sub(existing_fee);
-					if let Ok(unused) = payment.clone().checked_sub((asset.clone(), fee_increase).into()) {
+					if fee_increase == 0 {
+						// if the fee is set very low it lead to zero fees, in which case constructing
+						// the fee asset item to subtract from payment would fail. Therefore, provide
+						// early exit
+						return Ok(payment);
+					} else if let Ok(unused) = payment.clone().checked_sub((asset.clone(), fee_increase).into()) {
 						self.bought_weight = Some(BoughtWeight {
 							amount,
 							weight: new_weight,
