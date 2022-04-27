@@ -22,7 +22,7 @@ pub struct AssetMetadata<T: Parameter + Member + TypeInfo> {
 	pub decimals: u32,
 	pub name: Vec<u8>,
 	pub symbol: Vec<u8>,
-	pub location: MultiLocation,
+	pub location: Option<MultiLocation>,
 	pub additional: T,
 }
 
@@ -46,7 +46,10 @@ pub mod module {
 	}
 
 	#[pallet::error]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		/// Asset was not found
+		AssetNotFound,
+	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -54,6 +57,10 @@ pub mod module {
 		RegisteredAsset {
 			asset_id: T::AssetId,
 			metadata: AssetMetadata<T::CustomMetadata>,
+		},
+		SetLocation {
+			asset_id: T::AssetId,
+			location: MultiLocation,
 		},
 	}
 
@@ -110,17 +117,47 @@ pub mod module {
 
 			// if assetid is explicitly passed, use that. Otherwise, if the location is
 			// already registered, use the existing id
-			let unprocessed_asset_id = asset_id.or_else(|| MultiLocationLookup::<T>::get(&metadata.location));
+			let unprocessed_asset_id = asset_id.or_else(|| {
+				metadata
+					.location
+					.as_ref()
+					.and_then(|location| MultiLocationLookup::<T>::get(location))
+			});
 
 			let (processed_asset_id, metadata) = T::ProcessAsset::process_asset(unprocessed_asset_id, &metadata)?;
 
 			Metadata::<T>::insert(&processed_asset_id, &metadata);
-			MultiLocationLookup::<T>::insert(&metadata.location, &processed_asset_id);
+
+			// If it included a multilocation, add it to the lookup
+			if let Some(ref location) = metadata.location {
+				MultiLocationLookup::<T>::insert(location, &processed_asset_id);
+			}
 
 			Self::deposit_event(Event::<T>::RegisteredAsset {
 				asset_id: processed_asset_id,
 				metadata,
 			});
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn set_asset_location(
+			origin: OriginFor<T>,
+			asset_id: T::AssetId,
+			location: MultiLocation,
+		) -> DispatchResult {
+			let _ = T::AuthorityOrigin::ensure_origin(origin)?;
+
+			Metadata::<T>::try_mutate_exists(&asset_id, |metadata| -> DispatchResult {
+				let mut metadata = metadata.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+				metadata.location = Some(location.clone());
+				Ok(())
+			})?;
+
+			MultiLocationLookup::<T>::insert(&location, &asset_id);
+
+			Self::deposit_event(Event::<T>::SetLocation { asset_id, location });
 
 			Ok(())
 		}
