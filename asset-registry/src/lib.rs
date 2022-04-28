@@ -17,10 +17,29 @@ use xcm::VersionedMultiLocation;
 use xcm_builder::TakeRevenue;
 use xcm_executor::{traits::WeightTrader, Assets};
 
+mod mock;
+mod tests;
+
 pub trait AssetProcessor<AssetId, Metadata> {
-	fn process_asset(id: Option<AssetId>, asset_metadata: &Metadata) -> Result<(AssetId, Metadata), DispatchError>;
+	fn process_asset(id: Option<AssetId>, asset_metadata: Metadata) -> Result<(AssetId, Metadata), DispatchError>;
 }
 
+pub struct SequentialId<AssetId, Metadata, T>(PhantomData<(AssetId, Metadata, T)>);
+
+impl<AssetId: AtLeast32BitUnsigned, Metadata, T> AssetProcessor<AssetId, Metadata>
+	for SequentialId<AssetId, Metadata, T>
+where
+	AssetId: AtLeast32BitUnsigned + Parameter + Member + TypeInfo,
+	T: Config<AssetId = AssetId>,
+{
+	fn process_asset(id: Option<AssetId>, asset_metadata: Metadata) -> Result<(AssetId, Metadata), DispatchError> {
+		let asset_id = id.unwrap_or_else(|| match LastAssetId::<T>::get() {
+			None => AssetId::zero(),
+			Some(x) => x.saturating_add(AssetId::one()),
+		});
+		Ok((asset_id, asset_metadata))
+	}
+}
 #[derive(scale_info::TypeInfo, Encode, Decode, Clone, Eq, PartialEq, Debug)]
 pub struct AssetMetadata<Balance, CustomMetadata: Parameter + Member + TypeInfo> {
 	pub decimals: u32,
@@ -147,8 +166,7 @@ pub mod module {
 					.and_then(|location| MultiLocationLookup::<T>::get(location))
 			});
 
-			let (processed_asset_id, metadata) =
-				T::ProcessAsset::process_asset(unprocessed_asset_id, &metadata.clone())?;
+			let (processed_asset_id, metadata) = T::ProcessAsset::process_asset(unprocessed_asset_id, metadata)?;
 
 			Metadata::<T>::insert(&processed_asset_id, &metadata);
 
