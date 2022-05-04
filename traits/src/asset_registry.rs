@@ -8,3 +8,7 @@ pub trait WeightToFeeConverter {
 pub trait FixedConversionRateProvider {
 	fn get_fee_per_second(location: &MultiLocation) -> Option<u128>;
 }
+
+pub trait AssetProcessor<AssetId, Metadata> {
+	fn process_asset(id: Option<AssetId>, asset_metadata: Metadata) -> Result<(AssetId, Metadata), DispatchError>;
+}

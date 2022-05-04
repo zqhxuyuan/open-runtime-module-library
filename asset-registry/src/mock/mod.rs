@@ -1,7 +1,6 @@
 #![cfg(test)]
 
 use super::*;
-use crate as orml_asset_registry;
 
 use mock::para::AssetRegistry;
 use scale_info::TypeInfo;
@@ -36,7 +35,7 @@ pub enum CurrencyId {
 	/// Parachain D token
 	D,
 	/// Some asset from the asset registry
-	ForeignAsset(u32),
+	RegisteredAsset(u32),
 }
 
 pub struct CurrencyIdConvert;
@@ -50,7 +49,7 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 			CurrencyId::B1 => Some((Parent, Parachain(2), GeneralKey("B1".into())).into()),
 			CurrencyId::B2 => Some((Parent, Parachain(2), GeneralKey("B2".into())).into()),
 			CurrencyId::D => Some((Parent, Parachain(4), GeneralKey("D".into())).into()),
-			CurrencyId::ForeignAsset(id) => {
+			CurrencyId::RegisteredAsset(id) => {
 				AssetRegistry::get_metadata(id).and_then(|x| x.location.and_then(|x| x.try_into().ok()))
 			}
 		}
@@ -88,7 +87,7 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 			},
 			_ => None,
 		};
-		currency_id.or_else(|| AssetRegistry::get_asset_id(&l).map(|id| CurrencyId::ForeignAsset(id)))
+		currency_id.or_else(|| AssetRegistry::get_asset_id(&l).map(|id| CurrencyId::RegisteredAsset(id)))
 	}
 }
 impl Convert<MultiAsset, Option<CurrencyId>> for CurrencyIdConvert {
@@ -154,7 +153,6 @@ decl_test_network! {
 	}
 }
 
-pub type RelayBalances = pallet_balances::Pallet<relay::Runtime>;
 pub type ParaTokens = orml_tokens::Pallet<para::Runtime>;
 pub type ParaXTokens = orml_xtokens::Pallet<para::Runtime>;
 
