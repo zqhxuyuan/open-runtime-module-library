@@ -106,6 +106,7 @@ impl orml_asset_registry::Config for Runtime {
 	type CustomMetadata = CustomMetadata;
 	type ProcessAsset =
 		orml_asset_registry::SequentialId<u32, orml_asset_registry::AssetMetadata<Balance, CustomMetadata>, Runtime>;
+	type WeightInfo = ();
 }
 
 parameter_types! {

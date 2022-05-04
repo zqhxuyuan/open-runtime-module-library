@@ -14,10 +14,12 @@ use xcm::v2::prelude::*;
 use xcm::VersionedMultiLocation;
 
 pub use impls::*;
+pub use weights::WeightInfo;
 
 mod impls;
 mod mock;
 mod tests;
+mod weights;
 
 #[derive(scale_info::TypeInfo, Encode, Decode, Clone, Eq, PartialEq, Debug)]
 pub struct AssetMetadata<Balance, CustomMetadata: Parameter + Member + TypeInfo> {
@@ -60,7 +62,7 @@ pub mod module {
 			+ Into<u128>;
 
 		// /// Weight information for extrinsics in this module.
-		// type WeightInfo: WeightInfo;
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::error]
@@ -137,7 +139,7 @@ pub mod module {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(0)]
+		#[pallet::weight(T::WeightInfo::register_asset())]
 		#[transactional]
 		pub fn register_asset(
 			origin: OriginFor<T>,
@@ -155,7 +157,7 @@ pub mod module {
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(T::WeightInfo::update_asset())]
 		#[transactional]
 		pub fn update_asset(
 			origin: OriginFor<T>,
@@ -171,7 +173,7 @@ pub mod module {
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(T::WeightInfo::set_asset_location())]
 		#[transactional]
 		pub fn set_asset_location(
 			origin: OriginFor<T>,
