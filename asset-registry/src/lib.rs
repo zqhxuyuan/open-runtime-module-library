@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::large_enum_variant)]
 
 use frame_support::pallet_prelude::*;
 use frame_support::traits::EnsureOrigin;
@@ -209,7 +210,7 @@ impl<T: Config> Pallet<T> {
 			MultiLocationLookup::<T>::remove(location);
 		}
 
-		Self::insert_metadata(&asset_id, &metadata)?;
+		Self::insert_metadata(asset_id, metadata)?;
 
 		Ok(())
 	}
