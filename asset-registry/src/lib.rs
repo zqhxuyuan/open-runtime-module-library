@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(clippy::large_enum_variant)]
 
 use frame_support::pallet_prelude::*;
 use frame_support::traits::EnsureOrigin;
@@ -92,7 +91,7 @@ pub mod module {
 		},
 		SetLocation {
 			asset_id: T::AssetId,
-			location: VersionedMultiLocation,
+			location: Box<VersionedMultiLocation>,
 		},
 	}
 
@@ -179,13 +178,13 @@ pub mod module {
 		pub fn set_asset_location(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
-			location: VersionedMultiLocation,
+			location: Box<VersionedMultiLocation>,
 		) -> DispatchResult {
 			let _ = T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let old_metadata = Metadata::<T>::get(&asset_id).ok_or(Error::<T>::AssetNotFound)?;
 			let new_metadata = AssetMetadata {
-				location: Some(location.clone()),
+				location: Some((*location).clone()),
 				..old_metadata
 			};
 			Self::update_metadata(&asset_id, &new_metadata)?;
