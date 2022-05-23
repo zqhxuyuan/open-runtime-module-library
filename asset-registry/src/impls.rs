@@ -6,7 +6,7 @@ use orml_traits::{
 };
 use sp_runtime::{
 	traits::{AtLeast32BitUnsigned, Bounded, CheckedAdd, One},
-	ArithmeticError,
+	ArithmeticError, FixedU128
 };
 use sp_std::prelude::*;
 use xcm::v2::prelude::*;
@@ -16,7 +16,7 @@ use xcm_executor::{traits::WeightTrader, Assets};
 /// Alias for AssetMetadata to improve readability (and to placate clippy)
 pub type DefaultAssetMetadata<T> = AssetMetadata<<T as Config>::Balance, <T as Config>::CustomMetadata>;
 
-/// An AssetProcessor that assigns a sequential ID
+/// An `AssetProcessor` implementation that assigns a sequential ID
 pub struct SequentialId<T>(PhantomData<T>);
 
 impl<T> AssetProcessor<T::AssetId, DefaultAssetMetadata<T>> for SequentialId<T>
@@ -45,18 +45,19 @@ where
 	}
 }
 
-/// A default implementation for WeightToFeeConverter that takes a fixed
+/// A default implementation for `WeightToFeeConverter` that takes a fixed
 /// conversion rate.
 pub struct FixedRateAssetRegistryTrader<P: FixedConversionRateProvider>(PhantomData<P>);
 impl<P: FixedConversionRateProvider> WeightToFeeConverter for FixedRateAssetRegistryTrader<P> {
 	fn convert_weight_to_fee(location: &MultiLocation, weight: Weight) -> Option<u128> {
 		let fee_per_second = P::get_fee_per_second(location)?;
-		let amount = fee_per_second.saturating_mul(weight as u128) / (WEIGHT_PER_SECOND as u128);
+		let weight_ratio = FixedU128::saturating_from_rational(weight as u128, WEIGHT_PER_SECOND as u128);
+		let amount = fee_per_second.saturating_mul(weight_ratio);
 		Some(amount)
 	}
 }
 
-/// Helper struct for the AssetRegistryTrader that stores the data about
+/// Helper struct for the `AssetRegistryTrader` that stores the data about
 /// bought weight.
 pub struct BoughtWeight {
 	weight: Weight,
@@ -64,7 +65,7 @@ pub struct BoughtWeight {
 	amount: u128,
 }
 
-/// A WeightTrader implementation that tries to buy weight using a single
+/// A `WeightTrader` implementation that tries to buy weight using a single
 /// currency. It tries all assets in `payment` and uses the first asset that can
 /// cover the weight. This asset is then "locked in" - later calls to
 /// `buy_weight` in the same xcm message only try the same asset.
@@ -155,8 +156,8 @@ impl<W: WeightToFeeConverter, R: TakeRevenue> Drop for AssetRegistryTrader<W, R>
 
 pub struct ExistentialDeposits<T: Config>(PhantomData<T>);
 
-// Return Existential deposit of an asset. Implementing this trait allows the
-// pallet to be used in the tokens::ExistentialDeposits config item
+// Return existential deposit of an asset. Implementing this trait allows the
+// pallet to be used in the `tokens::ExistentialDeposits` config item
 impl<T: Config> GetByKey<T::AssetId, T::Balance> for ExistentialDeposits<T> {
 	fn get(k: &T::AssetId) -> T::Balance {
 		if let Some(metadata) = Pallet::<T>::metadata(k) {
